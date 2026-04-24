@@ -424,10 +424,10 @@ void publishData() {
   const char* stateLabel[] = { "IDLE", "TRIGGERED", "ON", "COOLDOWN" };
 
   StaticJsonDocument<400> doc;
-  doc["suhu"]             = serialized(String(suhu, 1));
-  doc["kelembapan_udara"] = serialized(String(humUdara, 1));
-  doc["tanah"]            = serialized(String(tanah, 1));
-  doc["cahaya"]           = serialized(String(cahaya, 1));
+  doc["suhu"]             = suhu;
+  doc["kelembapan_udara"] = humUdara;
+  doc["tanah"]            = tanah;
+  doc["cahaya"]           = cahaya;
   doc["status_kipas"]     = rcKipas.statusOn;
   doc["status_pompa"]     = rcPompa.statusOn;
   doc["status_lampu"]     = rcLampu.statusOn;
