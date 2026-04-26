@@ -32,29 +32,7 @@
 #include <DHT.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
-
-// ─────────────────────────────────────────────
-//  KONFIGURASI
-// ─────────────────────────────────────────────
-
-// WiFi
-const char* WIFI_SSID     = "";
-const char* WIFI_PASSWORD = "";
-
-// MQTT Broker
-const char* MQTT_SERVER    = "";
-const int   MQTT_PORT      = ;
-const char* MQTT_CLIENT_ID = "";
-const char* MQTT_USER     = "";
-const char* MQTT_PASSWORD = "";
-
-// MQTT Topics
-const char* TOPIC_TELEMETRY = "smartfarm/telemetry";  // publish data sensor
-const char* TOPIC_CONTROL   = "smartfarm/control";    // subscribe perintah dashboard
-
-// Telegram
-const char* TG_TOKEN   = "8610550586:AAFvo3WEyFyWFYkCbKoa-LClKdjyjEx3uck";
-const char* TG_CHAT_ID = "-5005126586";
+#include "config.h"
 
 // ─────────────────────────────────────────────
 //  PIN DEFINITIONS
