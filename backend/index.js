@@ -5,10 +5,29 @@ import mqtt from 'mqtt';
 import mongoose from 'mongoose';
 import axios from 'axios';
 import { Parser } from 'json2csv';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
 const app = express();
-app.use(cors());
+const allowedOrigins = [process.env.FRONTEND_URL, "http://localhost:5173"];
+app.use(
+  cors({
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+  }),
+);
 app.use(express.json());
+
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    // Jika di produksi, kunci ke domain Vercel.
+    // Jika di lokal (dev), buka saja untuk semua agar tidak bentrok dengan IP WSL/HP.
+    origin:
+      process.env.NODE_ENV === "production" ? process.env.FRONTEND_URL : "*",
+    methods: ["GET", "POST"],
+  },
+});
 
 // 1. DATABASE SETUP (MongoDB)
 // Simpan riwayat sensor
@@ -46,6 +65,8 @@ mqttClient.on('message', async (topic, message) => {
   if (topic === 'smartfarm/telemetry') {
     try {
       const data = JSON.parse(message.toString());
+
+      io.emit("telemetry_live", data);
       
       // 1. Parsing & Destructuring data agar lebih rapi
       const { 
@@ -161,4 +182,6 @@ app.get('/api/telemetry/download', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+httpServer.listen(PORT, () =>
+  console.log(`🚀 Server + Socket.io running on port ${PORT}`),
+);
