@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Thermometer, Droplets, Sun, Download } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { getTelemetry, getAnalytics, sendControl, getDownloadUrl } from '../services/api';
@@ -11,10 +11,19 @@ import ControlPanel from '../components/ControlPanel';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
 
-const socket = io(import.meta.env.VITE_API_URL);
-
 const Dashboard = () => {
-    const navigate = useNavigate();
+
+    const [liveData, setLiveData] = useState(null); // data sensor realtime
+    const [history, setHistory] = useState([]);
+    const [isOnline, setIsOnline] = useState(false); // Status Server
+    const [isEspOnline, setIsEspOnline] = useState(false); // Status Alat
+    const [analytics, setAnalytics] = useState(null);
+    const [chartFilter, setChartFilter] = useState('20');
+
+    // Fungsi internal untuk ambil stats terbaru
+    const refreshStats = () => {
+        getAnalytics().then(res => setAnalytics(res));
+    };
 
     const [data, setData] = useState({
         suhu: 0,
@@ -28,16 +37,6 @@ const Dashboard = () => {
         state_pompa: 'IDLE',
         state_lampu: 'IDLE'
     });
-    const [history, setHistory] = useState([]);
-    const [isOnline, setIsOnline] = useState(socket.connected); // Status Server
-    const [isEspOnline, setIsEspOnline] = useState(false); // Status Alat
-    const [analytics, setAnalytics] = useState(null);
-    const [chartFilter, setChartFilter] = useState('20');
-
-    // Fungsi internal untuk ambil stats terbaru
-    const refreshStats = () => {
-        getAnalytics().then(res => setAnalytics(res));
-    };
 
     // Fungsi untuk ambil data history
     const loadHistory = (filter) => {
@@ -49,51 +48,48 @@ const Dashboard = () => {
         });
     };
 
+    const navigate = useNavigate();
+    const socketRef = useRef(null);
+
     const handleLogout = () => {
-        localStorage.removeItem('smartfarm_token');
-        socket.disconnect(); // Tutup koneksi socket
+        localStorage.removeItem('app_token');
+        socketRef.current?.disconnect(); // ✅ Akses via ref
         navigate('/login');
     };
 
+
     useEffect(() => {
         // Hubungkan kembali jika sebelumnya sempat disconnect (akibat logout)
-        if (!socket.connected) {
-            socket.connect();
-        }
+        const socket = io(import.meta.env.VITE_API_URL);
+        socketRef.current = socket;
 
-        if (socket.connected) {
-            setIsOnline(true);
-        }
+        socket.on('connect', () => setIsOnline(true));
+        socket.on('disconnect', () => setIsOnline(false));
 
-        // Set status awal secara manual untuk sinkronisasi instan
-        setIsOnline(socket.connected);
-
-        socket.on('connect', () => {
-            setIsOnline(true);
-        });
-
-        socket.on('disconnect', () => {
-            setIsOnline(false);
-        });
 
         socket.on('telemetry_live', (payload) => {
-            console.log('📩 Data Live via Backend Bridge:', payload);
+            setLiveData(payload);
             setData(payload);
-            setHistory(prev => [payload, ...prev].slice(0, 20));
-            setIsOnline(true); // Jika data masuk, otomatis server pasti online
+            console.log('📩 Data Live via Backend Bridge:', payload);
             refreshStats();
         });
+
+        const loadHistory = (filter) => {
+            getTelemetry(filter).then(res => {
+                if (res?.length > 0) {
+                    setHistoryData(res);
+                    if (filter === '20') setData(res[res.length - 1]);
+                }
+            });
+        };
+
 
         socket.on('esp_status', (status) => {
             setIsEspOnline(status);
         });
 
         return () => {
-            // Bersihkan listener saat pindah halaman agar tidak memory leak
-            socket.off('connect');
-            socket.off('disconnect');
-            socket.off('telemetry_live');
-            socket.off('esp_status');
+            socket.disconnect();
         };
     }, []);
 
@@ -154,13 +150,13 @@ const Dashboard = () => {
                     />
                 </div>
                 <div className="flex items-center gap-4">
-                    <a
-                        href={getDownloadUrl()}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all"                    >
-                        <Download size={18} /> Export
-                    </a>
+                    <button
+                        onClick={getDownloadUrl} // Panggil fungsi unduhan di sini
+                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all active:scale-95"
+                    >
+                        <Download size={18} />
+                        <span>Export</span>
+                    </button>
                     <button
                         onClick={handleLogout}
                         className="flex items-center gap-2 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white px-4 py-2 rounded-lg border border-red-600/50 transition-all"
@@ -181,7 +177,7 @@ const Dashboard = () => {
 
                 {/* Kartu 2: Rentang Suhu (Ganti Estimasi Air) */}
                 <StatCard
-                    label="Suhu Terpanas / Dingin"
+                    label="Suhu Terpanas / Terdingin"
                     value={`${analytics?.maxSuhu || '--'}° / ${analytics?.minSuhu || '--'}°`}
                     subValue="Rekor suhu 24 jam terakhir"
                     color="border-red-500"
@@ -213,6 +209,7 @@ const Dashboard = () => {
                     icon={Thermometer}
                     color="border-orange-500"
                     state={data.state_kipas}
+                    iconColor="text-orange-500"
                 />
                 <SensorCard
                     title="Kelembapan Udara"
@@ -221,6 +218,7 @@ const Dashboard = () => {
                     icon={Droplets}
                     color="border-emerald-500"
                     state={data.state_pompa}
+                    iconColor="text-emerald-500"
                 />
                 <SensorCard
                     title="Kelembapan Tanah"
@@ -229,6 +227,7 @@ const Dashboard = () => {
                     icon={Droplets}
                     color="border-blue-500"
                     state={data.state_pompa}
+                    iconColor="text-blue-500"
                 />
                 <SensorCard
                     title="Intensitas Cahaya"
@@ -237,6 +236,7 @@ const Dashboard = () => {
                     icon={Sun}
                     color="border-yellow-500"
                     state={data.state_lampu}
+                    iconColor="text-yellow-500"
                 />
             </div>
             <div className="bg-slate-800 p-6 rounded-2xl shadow-xl">

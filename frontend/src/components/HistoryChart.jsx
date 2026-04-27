@@ -14,7 +14,6 @@ const HistoryChart = ({ data }) => {
   return (
     // 2. Gunakan min-width agar ResponsiveContainer punya acuan
     <div className="bg-slate-800 p-6 rounded-2xl shadow-xl h-[400px] w-full min-w-0">
-      <h2 className="text-xl font-semibold mb-6 text-slate-200">Tren Sensor (20 Data Terakhir)</h2>
       <ResponsiveContainer width="100%" height={300}>
         <AreaChart data={data}>
           <defs>
@@ -43,7 +42,10 @@ const HistoryChart = ({ data }) => {
             fontSize={12}
           />
           <YAxis stroke="#64748b" fontSize={12} />
-          <Tooltip 
+          <Tooltip
+            labelFormatter={(label) => new Date(label).toLocaleString('id-ID', {
+              dateStyle: 'short', timeStyle: 'short'
+            })} 
             contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }}
             itemStyle={{ fontSize: '12px' }}
           />
@@ -68,6 +70,7 @@ const HistoryChart = ({ data }) => {
             fill="url(#colorTanah)"
             strokeWidth={3}
             connectNulls={true}
+            animationDuration={1500}
           />
           <Area
             type="monotone"
@@ -77,6 +80,7 @@ const HistoryChart = ({ data }) => {
             fill="url(#colorCahaya)"
             strokeWidth={3}
             connectNulls={true}
+            animationDuration={1500}
           />
           <Area
             type="monotone"
@@ -86,6 +90,7 @@ const HistoryChart = ({ data }) => {
             fill="url(#colorKelembapan)"
             strokeWidth={3}
             connectNulls={true}
+            animationDuration={1500}
           />
         </AreaChart>
       </ResponsiveContainer>

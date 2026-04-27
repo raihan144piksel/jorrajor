@@ -2,19 +2,19 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 
+const ProtectedRoute = ({ children }) => {
+  const token = localStorage.getItem('app_token');
+  return token ? children : <Navigate to="/login" />;
+};
+
+// KOMPONEN PENGALIH: Mencegah masuk ke Login jika SUDAH login
+const PublicRoute = ({ children }) => {
+  const token = localStorage.getItem('app_token');
+  return token ? <Navigate to="/dashboard" /> : children;
+};
+  
 function App() {
 
-  const ProtectedRoute = ({ children }) => {
-    const token = localStorage.getItem('smartfarm_token');
-    return token ? children : <Navigate to="/login" />;
-  };
-
-  // KOMPONEN PENGALIH: Mencegah masuk ke Login jika SUDAH login
-  const PublicRoute = ({ children }) => {
-    const token = localStorage.getItem('smartfarm_token');
-    return token ? <Navigate to="/dashboard" /> : children;
-  };
-    
   return (
     <BrowserRouter>
       <Routes>

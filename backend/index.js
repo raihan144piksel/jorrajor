@@ -31,6 +31,7 @@ const io = new Server(httpServer, {
   },
 });
 
+const JWT_SECRET = process.env.JWT_SECRET;
 const authenticateToken = (req, res, next) => {
   const token = req.headers["authorization"]?.split(" ")[1];
   if (!token)
@@ -41,18 +42,6 @@ const authenticateToken = (req, res, next) => {
     req.user = user;
     next();
   });
-};
-
-let espOnline = false;
-let espTimeout;
-let lastNotifTime = 0;
-const NOTIF_COOLDOWN = 10 * 60 * 1000;
-const JWT_SECRET = process.env.JWT_SECRET || "kode-rahasia-smartfarm";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
-let lastStates = {
-  kipas: false,
-  pompa: false,
-  lampu: false,
 };
 
 // 1. DATABASE SETUP (MongoDB)
@@ -105,6 +94,16 @@ mqttClient.on("connect", () => {
   mqttClient.subscribe("smartfarm/telemetry");
 });
 
+let espOnline = false;
+let espTimeout;
+let lastStates = {
+  kipas: false,
+  pompa: false,
+  lampu: false,
+};
+let lastNotifTime = 0;
+const NOTIF_COOLDOWN = 10 * 60 * 1000;
+
 mqttClient.on("message", async (topic, message) => {
   if (topic === "smartfarm/telemetry") {
     try {
@@ -120,6 +119,17 @@ mqttClient.on("message", async (topic, message) => {
         io.emit("esp_status", false); // Beritahu Frontend ESP Offline
         console.log("⚠️ ESP32 Offline (Timeout)");
       }, 15000);
+
+      process.on("SIGTERM", () => {
+        clearTimeout(espTimeout);
+        mqttClient.end();
+        httpServer.close(() => process.exit(0));
+      });
+      process.on("SIGINT", () => {
+        clearTimeout(espTimeout);
+        mqttClient.end();
+        httpServer.close(() => process.exit(0));
+      });
 
       // 1. Parsing & Destructuring data agar lebih rapi
       const {
@@ -192,18 +202,21 @@ mqttClient.on("message", async (topic, message) => {
 
       // 3. Kirim ke Telegram jika ada pesan
       if (pesanNotif.length > 0) {
-        const pesanFinal = `📢 *LAPORAN SISTEM SEMAI*\n\n${pesanNotif.join("\n\n")}`;
-
-        axios
-          .post(
-            `https://api.telegram.org/bot${process.env.TG_TOKEN}/sendMessage`,
-            {
-              chat_id: process.env.TG_CHAT_ID,
-              text: pesanFinal,
-              parse_mode: "Markdown",
-            },
-          )
-          .catch((err) => console.error("Telegram Error:", err.message));
+        const now = Date.now();
+        if (now - lastNotifTime > NOTIF_COOLDOWN) {
+          lastNotifTime = now; // update waktu terakhir notif
+          const pesanFinal = `📢 *LAPORAN SISTEM SEMAI*\n\n${pesanNotif.join("\n\n")}`;
+          axios
+            .post(
+              `https://api.telegram.org/bot${process.env.TG_TOKEN}/sendMessage`,
+              {
+                chat_id: process.env.TG_CHAT_ID,
+                text: pesanFinal,
+                parse_mode: "Markdown",
+              },
+            )
+            .catch((err) => console.error("Telegram Error:", err.message));
+        }
       }
 
       // 4. Update State (lebih ringkas)
@@ -254,7 +267,7 @@ app.post("/api/login", loginLimiter, async (req, res) => {
 
 // 3. API ENDPOINTS (Untuk Dashboard)
 // Ambil data terbaru untuk grafik
-app.get("/api/telemetry", async (req, res) => {
+app.get("/api/telemetry", authenticateToken, async (req, res) => {
   try {
     const { filter } = req.query;
     let result;
@@ -292,7 +305,7 @@ app.post("/api/control", authenticateToken, (req, res) => {
 });
 
 // Endpoint untuk Download CSV
-app.get("/api/telemetry/download", async (req, res) => {
+app.get("/api/telemetry/download", authenticateToken, async (req, res) => {
   try {
     // 1. Ambil semua data dari database (urutkan dari yang terbaru)
     const docs = await Telemetry.find().sort({ timestamp: -1 }).limit(500);
@@ -332,10 +345,11 @@ app.get("/api/telemetry/download", async (req, res) => {
   }
 });
 
-app.get("/api/analytics", async (req, res) => {
+app.get("/api/analytics", authenticateToken, async (req, res) => {
   try {
     const satuHariLalu = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
+    // 1. Ambil Stats Dasar
     const stats = await Telemetry.aggregate([
       { $match: { timestamp: { $gte: satuHariLalu } } },
       {
@@ -344,32 +358,52 @@ app.get("/api/analytics", async (req, res) => {
           rataSuhu: { $avg: "$suhu" },
           maxSuhu: { $max: "$suhu" },
           minSuhu: { $min: "$suhu" },
-          tanahTerendah: { $min: "$tanah" },
-          totalData: { $sum: 1 }, // Menghitung berapa banyak data masuk
-          jamTanahKering: { $push: { waktu: "$timestamp", nilai: "$tanah" } },
+          totalData: { $sum: 1 },
         },
       },
     ]);
 
-    if (stats.length === 0) return res.json({ message: "Data belum cukup" });
+    if (!stats || stats.length === 0) {
+      return res.json({
+        rataSuhu:
+          stats[0]?.rataSuhu !== undefined
+            ? stats[0].rataSuhu.toFixed(1)
+            : "--",
+        maxSuhu:
+          stats[0]?.maxSuhu !== undefined ? stats[0].maxSuhu.toFixed(1) : "--",
+        minSuhu:
+          stats[0]?.minSuhu !== undefined ? stats[0].minSuhu.toFixed(1) : "--",
+        totalMenit: stats[0]?.totalData || 0,
+        jamTanahKering: docTerendah
+          ? new Date(docTerendah.timestamp).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "--",
+        nilaiTanahKering: docTerendah ? docTerendah.tanah : "--",
+      });
+    }
 
-    // Mencari jam spesifik saat tanah paling kering
-    const dataKering = stats[0].jamTanahKering.sort(
-      (a, b) => a.nilai - b.nilai,
-    )[0];
+    // 2. Ambil Jam Spesifik Saat Tanah Paling Kering (Logika Terpisah agar Aman)
+    const docTerendah = await Telemetry.findOne({
+      timestamp: { $gte: satuHariLalu },
+    }).sort({ tanah: 1 }); // Sort dari yang paling kecil (kering)
 
     res.json({
       rataSuhu: stats[0].rataSuhu.toFixed(1),
-      maxSuhu: stats[0].maxSuhu,
-      minSuhu: stats[0].minSuhu,
+      maxSuhu: stats[0].maxSuhu.toFixed(1),
+      minSuhu: stats[0].minSuhu.toFixed(1),
       totalMenit: stats[0].totalData,
-      jamTanahKering: new Date(dataKering.waktu).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      nilaiTanahKering: dataKering.nilai,
+      jamTanahKering: docTerendah
+        ? new Date(docTerendah.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "--",
+      nilaiTanahKering: docTerendah ? docTerendah.tanah : "--",
     });
   } catch (err) {
+    console.error("Analytics Error:", err);
     res.status(500).json({ error: err.message });
   }
 });

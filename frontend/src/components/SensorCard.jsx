@@ -10,7 +10,7 @@ const statusStyles = {
 
 
 
-const SensorCard = ({ title, value, unit, icon: Icon, color, state }) => {
+const SensorCard = ({ title, value, unit, icon: Icon, color, state, iconColor }) => {
   
   const safeState = (state || 'IDLE').toUpperCase();
   const currentStyle = statusStyles[safeState] || statusStyles.IDLE;
@@ -24,7 +24,7 @@ const SensorCard = ({ title, value, unit, icon: Icon, color, state }) => {
             {value} <span className="text-lg font-normal text-slate-500">{unit}</span>
           </h3>
         </div>
-        <div className={`p-3 rounded-lg bg-slate-700 ${color.replace('border-', 'text-')}`}>
+        <div className={`p-3 rounded-lg bg-slate-700 ${iconColor}`}>
           <Icon size={24} />
         </div>
       </div>

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-
-
+import { login } from '../services/api';
+import greenhouseIcon from '../assets/greenhouse-svgrepo-com.svg';
 
 const LoginPage = () => {
     const [username, setUsername] = useState('');
@@ -11,24 +10,15 @@ const LoginPage = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const token = localStorage.getItem('smartfarm_token');
-        if (token) {
-            navigate('/dashboard');
-        }
-    }, [navigate]);
-
     const handleLogin = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
 
         try {
+            const data = await login(username, password);
             // Gunakan env variable agar fleksibel saat deploy nanti
-            const apiUrl = import.meta.env.VITE_API_BASE_URL;
-            const response = await axios.post(`${apiUrl}/login`, { username, password });
-
-            localStorage.setItem('smartfarm_token', response.data.token);
+            localStorage.setItem('app_token', data.token);
 
             // Langsung pindah ke dashboard setelah sukses
             navigate('/dashboard');
@@ -43,8 +33,10 @@ const LoginPage = () => {
         <div className="min-h-screen flex flex-col justify-center items-center bg-slate-950 px-4 font-sans text-slate-50">
             <div className="w-full max-w-md bg-slate-900 p-10 rounded-3xl shadow-2xl border border-slate-800 text-center">
                 {/* Icon & Title */}
-                <div className="text-5xl mb-4">🌱</div>
-                <h2 className="text-3xl font-bold tracking-tight mb-2">Smart Farm Login</h2>
+                <div className="mb-4 flex justify-center">
+                    <img src={greenhouseIcon} alt="Greenhouse" className="w-24 h-24" />
+                </div>
+                <h2 className="text-3xl font-bold tracking-tight mb-2">SEMAI Login</h2>
                 <p className="text-slate-400 text-sm mb-8">Masukkan password untuk akses kontrol sistem</p>
 
                 <form onSubmit={handleLogin} className="flex flex-col">
@@ -55,6 +47,7 @@ const LoginPage = () => {
                         onChange={(e) => setUsername(e.target.value)}
                         className="w-full px-4 py-3.5 mb-4 rounded-xl bg-slate-950 border border-slate-700 text-slate-50 text-center outline-none focus:border-blue-500 transition-colors"
                         required
+                        autoComplete="username"
                     />
                     <input
                         type="password"
@@ -63,6 +56,7 @@ const LoginPage = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         className="w-full px-4 py-3.5 mb-5 rounded-xl bg-slate-950 border border-slate-700 text-slate-50 text-center text-lg outline-none focus:border-blue-500 transition-colors"
                         required
+                        autoComplete="current-password"
                     />
 
                     {/* Error Message */}
