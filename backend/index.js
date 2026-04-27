@@ -9,6 +9,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import rateLimit from "express-rate-limit";
 
 const app = express();
 const corsOrigin =
@@ -70,6 +71,23 @@ const telemetrySchema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 });
 const Telemetry = mongoose.model("Telemetry", telemetrySchema);
+
+const userSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+});
+
+const User = mongoose.model("User", userSchema);
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 menit
+  max: 5, // Maksimal 5 kali percobaan
+  message: {
+    message: "Terlalu banyak percobaan login, coba lagi setelah 15 menit",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 mongoose
   .connect(process.env.MONGO_URI)
@@ -205,15 +223,33 @@ io.on("connection", (socket) => {
   // console.log("📱 New Client Connected, sending ESP status:", espOnline);
 });
 
-app.post("/api/login", async (req, res) => {
-  const { password } = req.body;
+app.post("/api/login", loginLimiter, async (req, res) => {
+  try {
+    const { username, password } = req.body;
 
-    if (password === ADMIN_PASSWORD) {
-    const token = jwt.sign({ role: "admin" }, JWT_SECRET, { expiresIn: "24h" });
-    return res.json({ token });
+    // Cari user di MongoDB
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(401).json({ message: "Username atau Password salah!" });
+    }
+
+    // Cek Password menggunakan bcrypt
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Username atau Password salah!" });
+    }
+
+    // Buat Token
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      JWT_SECRET,
+      { expiresIn: "24h" },
+    );
+
+    res.json({ token });
+  } catch (err) {
+    res.status(500).json({ message: "Server Error" });
   }
-
-  res.status(401).json({ message: "Password salah!" });
 });
 
 // 3. API ENDPOINTS (Untuk Dashboard)

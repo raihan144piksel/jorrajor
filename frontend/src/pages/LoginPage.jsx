@@ -2,7 +2,10 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
+
+
 const LoginPage = () => {
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -23,14 +26,14 @@ const LoginPage = () => {
         try {
             // Gunakan env variable agar fleksibel saat deploy nanti
             const apiUrl = import.meta.env.VITE_API_BASE_URL;
-            const response = await axios.post(`${apiUrl}/login`, { password });
+            const response = await axios.post(`${apiUrl}/login`, { username, password });
 
             localStorage.setItem('smartfarm_token', response.data.token);
 
             // Langsung pindah ke dashboard setelah sukses
             navigate('/dashboard');
         } catch (err) {
-            setError(err.response?.data?.message || 'Password salah!');
+            setError(err.response?.data?.message || 'Gagal Login!');
         } finally {
             setLoading(false);
         }
@@ -45,6 +48,14 @@ const LoginPage = () => {
                 <p className="text-slate-400 text-sm mb-8">Masukkan password untuk akses kontrol sistem</p>
 
                 <form onSubmit={handleLogin} className="flex flex-col">
+                    <input
+                        type="text"
+                        placeholder="Username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full px-4 py-3.5 mb-4 rounded-xl bg-slate-950 border border-slate-700 text-slate-50 text-center outline-none focus:border-blue-500 transition-colors"
+                        required
+                    />
                     <input
                         type="password"
                         placeholder="Password"
