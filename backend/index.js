@@ -7,6 +7,8 @@ import axios from "axios";
 import { Parser } from "json2csv";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
 const app = express();
 const corsOrigin =
@@ -28,8 +30,29 @@ const io = new Server(httpServer, {
   },
 });
 
+const authenticateToken = (req, res, next) => {
+  const token = req.headers["authorization"]?.split(" ")[1];
+  if (!token)
+    return res.status(401).json({ message: "Akses ditolak, token hilang!" });
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ message: "Token tidak valid!" });
+    req.user = user;
+    next();
+  });
+};
+
 let espOnline = false;
 let espTimeout;
+let lastNotifTime = 0;
+const NOTIF_COOLDOWN = 10 * 60 * 1000;
+const JWT_SECRET = process.env.JWT_SECRET || "kode-rahasia-smartfarm";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+let lastStates = {
+  kipas: false,
+  pompa: false,
+  lampu: false,
+};
 
 // 1. DATABASE SETUP (MongoDB)
 // Simpan riwayat sensor
@@ -108,27 +131,50 @@ mqttClient.on("message", async (topic, message) => {
         state_lampu,
       });
 
-      // 3. Pengecekan Kondisi & Kirim Telegram
-      let peringatan = [];
+      let pesanNotif = [];
 
-      // Cek Suhu (Kipas)
-      if (suhu > 30) {
-        peringatan.push(`🌡️ *Suhu Tinggi:* ${suhu}°C (Kipas ON)`);
-      }
+      const cekStatus = (
+        nama,
+        statusSekarang,
+        statusLama,
+        pesanAktif,
+        pesanMati,
+      ) => {
+        if (statusSekarang === true && statusLama === false) {
+          pesanNotif.push(pesanAktif);
+        } else if (statusSekarang === false && statusLama === true) {
+          pesanNotif.push(pesanMati);
+        }
+      };
 
-      // Cek Kelembapan Tanah (Pompa)
-      if (tanah < 40) {
-        peringatan.push(`💧 *Tanah Kering:* ${tanah}% (Pompa ON)`);
-      }
+      // 2. Jalankan logika pengecekan
+      cekStatus(
+        "kipas",
+        status_kipas,
+        lastStates.kipas,
+        `🌬️ *Kipas Menyala Otomatis*\nAlasan: Suhu mencapai ${suhu}°C (Threshold > 30°C)`,
+        `✅ *Kipas Dimatikan*\nAlasan: Suhu sudah normal (${suhu}°C)`,
+      );
 
-      // Cek Cahaya (Lampu)
-      if (cahaya < 50) {
-        peringatan.push(`💡 *Cahaya Kurang:* ${cahaya}% (Lampu ON)`);
-      }
+      cekStatus(
+        "pompa",
+        status_pompa,
+        lastStates.pompa,
+        `💧 *Pompa Menyala Otomatis*\nAlasan: Tanah kering ${tanah}% (Threshold < 40%)`,
+        `✅ *Penyiraman Selesai*\nAlasan: Kelembapan tanah cukup (${tanah}%)`,
+      );
 
-      // Jika ada peringatan, gabungkan dan kirim satu pesan saja
-      if (peringatan.length > 0) {
-        const pesanFinal = `⚠️ *NOTIFIKASI SMART FARM*\n\n${peringatan.join("\n")}`;
+      cekStatus(
+        "lampu",
+        status_lampu,
+        lastStates.lampu,
+        `💡 *Lampu Menyala Otomatis*\nAlasan: Intensitas cahaya rendah ${cahaya}%`,
+        `✅ *Lampu Dimatikan*\nAlasan: Cahaya sudah cukup (${cahaya}%)`,
+      );
+
+      // 3. Kirim ke Telegram jika ada pesan
+      if (pesanNotif.length > 0) {
+        const pesanFinal = `📢 *LAPORAN SISTEM SEMAI*\n\n${pesanNotif.join("\n\n")}`;
 
         axios
           .post(
@@ -141,6 +187,13 @@ mqttClient.on("message", async (topic, message) => {
           )
           .catch((err) => console.error("Telegram Error:", err.message));
       }
+
+      // 4. Update State (lebih ringkas)
+      lastStates = {
+        kipas: status_kipas,
+        pompa: status_pompa,
+        lampu: status_lampu,
+      };
     } catch (err) {
       console.error("Gagal memproses data MQTT:", err);
     }
@@ -150,6 +203,17 @@ mqttClient.on("message", async (topic, message) => {
 io.on("connection", (socket) => {
   socket.emit("esp_status", espOnline);
   // console.log("📱 New Client Connected, sending ESP status:", espOnline);
+});
+
+app.post("/api/login", async (req, res) => {
+  const { password } = req.body;
+
+    if (password === ADMIN_PASSWORD) {
+    const token = jwt.sign({ role: "admin" }, JWT_SECRET, { expiresIn: "24h" });
+    return res.json({ token });
+  }
+
+  res.status(401).json({ message: "Password salah!" });
 });
 
 // 3. API ENDPOINTS (Untuk Dashboard)
@@ -185,7 +249,7 @@ app.get("/api/telemetry", async (req, res) => {
 });
 
 // Kirim perintah ke ESP32 (Override)
-app.post("/api/control", (req, res) => {
+app.post("/api/control", authenticateToken, (req, res) => {
   const { device, status } = req.body; // misal { "kipas": true }
   mqttClient.publish("smartfarm/control", JSON.stringify({ [device]: status }));
   res.json({ message: `Perintah ${device} set ke ${status} telah dikirim.` });
