@@ -63,7 +63,7 @@
 // ─────────────────────────────────────────────
 //  TIMER (dalam milidetik)
 // ─────────────────────────────────────────────
-const unsigned long INTERVAL_BACA    = 5000;    // baca sensor setiap 5 detik
+const unsigned long INTERVAL_BACA    = 10000;    // baca sensor setiap 5 detik
 const unsigned long DURASI_TRIGGER   = 10000;   // kondisi harus bertahan 10 detik → relay ON
 const unsigned long DURASI_ON_POMPA  = 15000;   // pompa menyala minimal 15 detik
 const unsigned long DURASI_ON_KIPAS  = 45000;   // kipas menyala minimal 45 detik
@@ -116,14 +116,14 @@ bool overrideKipas = false;
 bool overridePompa = false;
 bool overrideLampu = false;
 
-bool statusKipas = false;
-bool statusPompa = false;
-bool statusLampu = false;
+// bool statusKipas = false;
+// bool statusPompa = false;
+// bool statusLampu = false;
 
 // Anti-spam Telegram — hanya kirim notif saat state berubah ON
-bool notifKipas = false;
-bool notifPompa = false;
-bool notifLampu = false;
+// bool notifKipas = false;
+// bool notifPompa = false;
+// bool notifLampu = false;
 
 unsigned long lastBaca = 0;
 
@@ -131,26 +131,26 @@ unsigned long lastBaca = 0;
 // ═══════════════════════════════════════════════════════
 //  TELEGRAM — Kirim notifikasi via HTTPClient
 // ═══════════════════════════════════════════════════════
-void kirimTelegram(String pesan) {
-  if (WiFi.status() != WL_CONNECTED) return;
+// void kirimTelegram(String pesan) {
+//   if (WiFi.status() != WL_CONNECTED) return;
 
-  HTTPClient http;
-  String url = "https://api.telegram.org/bot";
-  url += TG_TOKEN;
-  url += "/sendMessage?chat_id=";
-  url += TG_CHAT_ID;
-  url += "&text=";
+//   HTTPClient http;
+//   String url = "https://api.telegram.org/bot";
+//   url += TG_TOKEN;
+//   url += "/sendMessage?chat_id=";
+//   url += TG_CHAT_ID;
+//   url += "&text=";
 
-  // Encode spasi dan karakter khusus
-  pesan.replace(" ", "%20");
-  pesan.replace("\n", "%0A");
-  url += pesan;
+//   // Encode spasi dan karakter khusus
+//   pesan.replace(" ", "%20");
+//   pesan.replace("\n", "%0A");
+//   url += pesan;
 
-  http.begin(url);
-  int code = http.GET();
-  Serial.printf("[Telegram] HTTP %d\n", code);
-  http.end();
-}
+//   http.begin(url);
+//   int code = http.GET();
+//   Serial.printf("[Telegram] HTTP %d\n", code);
+//   http.end();
+// }
 
 
 // ═══════════════════════════════════════════════════════
@@ -290,9 +290,11 @@ void bacaSensor() {
 //
 //  COOLDOWN ──(120 detik selesai)──► IDLE
 // ═══════════════════════════════════════════════════════
+// void updateRelay(RelayControl &rc, int pin, bool kondisiTerpenuhi,
+//                  bool overrideOn, bool &notifFlag,
+//                  const char* namaRelay, String pesanNotif) {
 void updateRelay(RelayControl &rc, int pin, bool kondisiTerpenuhi,
-                 bool overrideOn, bool &notifFlag,
-                 const char* namaRelay, String pesanNotif) {
+                 bool &overrideOn, const char* namaRelay) {
 
   unsigned long now = millis();
 
@@ -325,10 +327,10 @@ void updateRelay(RelayControl &rc, int pin, bool kondisiTerpenuhi,
         rc.timerMulai = now;
         Serial.printf("[%s] 10 detik terpenuhi → RELAY ON\n", namaRelay);
 
-        if (!notifFlag) {
-          kirimTelegram(pesanNotif);
-          notifFlag = true;
-        }
+        // if (!notifFlag) {
+        //   kirimTelegram(pesanNotif);
+        //   notifFlag = true;
+        // }
       }
       break;
 
@@ -342,7 +344,7 @@ void updateRelay(RelayControl &rc, int pin, bool kondisiTerpenuhi,
           rc.statusOn   = false;
           rc.state      = STATE_COOLDOWN;
           rc.timerMulai = now;
-          notifFlag     = false;
+          // notifFlag     = false;
           Serial.printf("[%s] Kondisi normal → RELAY OFF → cooldown 120 detik\n", namaRelay);
         }
         // Kalau kondisi masih buruk, relay tetap ON (tidak masuk cooldown)
@@ -364,32 +366,54 @@ void updateRelay(RelayControl &rc, int pin, bool kondisiTerpenuhi,
 // ═══════════════════════════════════════════════════════
 //  KONTROL SEMUA RELAY
 // ═══════════════════════════════════════════════════════
+// void kontrolRelay() {
+//   // Kipas — kondisi: suhu > 30°C
+//   updateRelay(
+//     rcKipas, RELAY_KIPAS,
+//     (suhu > SUHU_THRESHOLD),
+//     overrideKipas, notifKipas,
+//     "KIPAS",
+//     "Kipas ON\nAlasan: Suhu " + String(suhu, 1) + "C > " + String(SUHU_THRESHOLD, 0) + "C selama 10 detik"
+//   );
+
+//   // Pompa — kondisi: tanah < 40%
+//   updateRelay(
+//     rcPompa, RELAY_POMPA,
+//     (tanah < SOIL_THRESHOLD),
+//     overridePompa, notifPompa,
+//     "POMPA",
+//     "Pompa Air ON\nAlasan: Tanah " + String(tanah, 1) + "% < " + String(SOIL_THRESHOLD, 0) + "% selama 10 detik"
+//   );
+
+//   // Lampu — kondisi: cahaya < 50%
+//   updateRelay(
+//     rcLampu, RELAY_LAMPU,
+//     (cahaya < CAHAYA_THRESHOLD),
+//     overrideLampu, notifLampu,
+//     "LAMPU",
+//     "Lampu LED ON\nAlasan: Cahaya " + String(cahaya, 1) + "% < " + String(CAHAYA_THRESHOLD, 0) + "% selama 10 detik"
+//   );
+// }
 void kontrolRelay() {
   // Kipas — kondisi: suhu > 30°C
   updateRelay(
     rcKipas, RELAY_KIPAS,
     (suhu > SUHU_THRESHOLD),
-    overrideKipas, notifKipas,
-    "KIPAS",
-    "Kipas ON\nAlasan: Suhu " + String(suhu, 1) + "C > " + String(SUHU_THRESHOLD, 0) + "C selama 10 detik"
+    overrideKipas, "KIPAS"
   );
 
   // Pompa — kondisi: tanah < 40%
   updateRelay(
     rcPompa, RELAY_POMPA,
     (tanah < SOIL_THRESHOLD),
-    overridePompa, notifPompa,
-    "POMPA",
-    "Pompa Air ON\nAlasan: Tanah " + String(tanah, 1) + "% < " + String(SOIL_THRESHOLD, 0) + "% selama 10 detik"
+    overridePompa, "POMPA"
   );
 
   // Lampu — kondisi: cahaya < 50%
   updateRelay(
     rcLampu, RELAY_LAMPU,
     (cahaya < CAHAYA_THRESHOLD),
-    overrideLampu, notifLampu,
-    "LAMPU",
-    "Lampu LED ON\nAlasan: Cahaya " + String(cahaya, 1) + "% < " + String(CAHAYA_THRESHOLD, 0) + "% selama 10 detik"
+    overrideLampu, "LAMPU"
   );
 }
 
