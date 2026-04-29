@@ -1,6 +1,6 @@
 # 🌱 SEMAI Smart Farm — Enterprise IoT Dashboard
 
-![Smart Farm Dashboard Mockup](https://raw.githubusercontent.com/raihan144piksel/rumahijo/main/preview.png)
+![Smart Farm Dashboard Mockup](https://gitlab.com/raihan144piksel/rumahijo/-/blob/a37dc5543d08bf0fd2e4efd4384f669991c229a6/preview.png)
 
 SEMAI Smart Farm adalah sistem monitoring dan otomatisasi rumah kaca berbasis IoT yang modern, responsif, dan _type-safe_. Proyek ini mencakup ekosistem lengkap mulai dari **Firmware (ESP32)**, **Backend (Node.js/TypeScript)**, hingga **Frontend (React/TypeScript)**.
 
