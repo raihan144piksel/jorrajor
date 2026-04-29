@@ -2,12 +2,12 @@
   "name": "backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "server.ts",
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon index.js",
-    "start": "node index.js"
+    "dev": "tsx watch server.ts",
+    "start": "tsx server.ts"
   },
   "keywords": [],
   "author": "",
@@ -23,7 +23,17 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.5.0",
     "mqtt": "^5.15.1",
-    "nodemon": "^3.1.14",
     "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/json2csv": "^5.0.7",
+    "@types/jsonwebtoken": "^9.0.10",
+    "eslint-js": "github:eslint/js",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
   }
 }

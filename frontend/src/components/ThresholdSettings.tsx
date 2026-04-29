@@ -1,0 +1,121 @@
+import React, { useState, useEffect } from "react";
+import { Settings as SettingsIcon } from "lucide-react";
+import { getSettings, updateSettings } from "../services/api";
+import { ThresholdSettings as ThresholdSettingsType } from "../types";
+
+const ThresholdSettings: React.FC = () => {
+    const [thresholds, setThresholds] = useState<ThresholdSettingsType>({
+        temp_threshold: 30,
+        hum_threshold: 40,
+        light_threshold: 20,
+    });
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        getSettings()
+            .then((res) => setThresholds(res))
+            .catch(console.error);
+    }, []);
+
+    const handleUpdateThresholds = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            await updateSettings(thresholds);
+            alert("✅ Pengaturan berhasil disimpan!");
+        } catch (err) {
+            alert("❌ Gagal menyimpan pengaturan");
+            console.error("Thresholds error:", err);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <section className="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700">
+            <div className="flex items-center gap-2 mb-6">
+                <SettingsIcon className="text-blue-500" size={20} />
+                <h2 className="text-xl font-bold text-white">
+                    Otomasi & Ambang Batas
+                </h2>
+            </div>
+
+            <form
+                onSubmit={handleUpdateThresholds}
+                className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            >
+                <div className="space-y-2">
+                    <label className="text-sm text-slate-400">
+                        🔥 Nyalakan Kipas Jika Suhu &gt;
+                    </label>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            value={thresholds.temp_threshold}
+                            onChange={(e) =>
+                                setThresholds({
+                                    ...thresholds,
+                                    temp_threshold: Number(e.target.value),
+                                })
+                            }
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-blue-500"
+                        />
+                        <span className="text-slate-400">°C</span>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm text-slate-400">
+                        💧 Nyalakan Pompa Jika Tanah &lt;
+                    </label>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            value={thresholds.hum_threshold}
+                            onChange={(e) =>
+                                setThresholds({
+                                    ...thresholds,
+                                    hum_threshold: Number(e.target.value),
+                                })
+                            }
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-blue-500"
+                        />
+                        <span className="text-slate-400">%</span>
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-sm text-slate-400">
+                        💡 Nyalakan Lampu Jika Cahaya &lt;
+                    </label>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            value={thresholds.light_threshold}
+                            onChange={(e) =>
+                                setThresholds({
+                                    ...thresholds,
+                                    light_threshold: Number(e.target.value),
+                                })
+                            }
+                            className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-blue-500"
+                        />
+                        <span className="text-slate-400">%</span>
+                    </div>
+                </div>
+
+                <div className="md:col-span-3 flex justify-end">
+                    <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-all active:scale-95 disabled:opacity-50"
+                    >
+                        {isSaving ? "Menyimpan..." : "Simpan Pengaturan"}
+                    </button>
+                </div>
+            </form>
+        </section>
+    );
+};
+
+export default ThresholdSettings;

@@ -1,4 +1,14 @@
-const StatusBadge = ({ label, status, activeText, activeColor, pulse = false }) => {
+import React from "react";
+
+interface StatusBadgeProps {
+    label: string;
+    status: boolean;
+    activeText: string;
+    activeColor: "green" | "blue" | "red" | "slate";
+    pulse?: boolean;
+}
+
+const StatusBadge: React.FC<StatusBadgeProps> = ({ label, status, activeText, activeColor, pulse = false }) => {
     const themes = {
         green: 'bg-green-500/10 text-green-400',
         blue: 'bg-blue-500/10 text-blue-400',

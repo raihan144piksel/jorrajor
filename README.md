@@ -1,93 +1,175 @@
-# rumahijo
+# 🌱 SEMAI Smart Farm — Enterprise IoT Dashboard
 
+![Smart Farm Dashboard Mockup](https://raw.githubusercontent.com/raihan144piksel/rumahijo/main/preview.png)
 
+SEMAI Smart Farm adalah sistem monitoring dan otomatisasi rumah kaca berbasis IoT yang modern, responsif, dan _type-safe_. Proyek ini mencakup ekosistem lengkap mulai dari **Firmware (ESP32)**, **Backend (Node.js/TypeScript)**, hingga **Frontend (React/TypeScript)**.
 
-## Getting started
+## ✨ Fitur Utama
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- **Real-time Monitoring**: Visualisasi data sensor (Suhu, Kelembapan, Tanah, Cahaya) secara instan via Socket.io.
+- **Dynamic Threshold**: Pengaturan ambang batas relay yang bisa diubah langsung dari dashboard tanpa _reflash_ alat.
+- **Deadband Filter**: Optimasi database (Report by Exception) — data hanya disimpan jika ada perubahan signifikan, menghemat storage hingga 90%.
+- **Non-Blocking Architecture**: Firmware ESP32 tetap menjalankan otomatisasi meskipun koneksi WiFi/MQTT terputus.
+- **WiFiManager**: Konfigurasi WiFi dinamis melalui Captive Portal (tanpa _hardcoded_ SSID/Password).
+- **History Analytics**: Grafik historis dengan agregasi 5-menit (Database Level) dan sistem _caching_ di frontend.
+- **Telegram Alerts**: Notifikasi otomatis ke Telegram saat pompa/kipas/lampu berubah status.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+---
 
-## Add your files
+## 🏗️ Struktur Proyek
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+- `/frontend`: Aplikasi React + Vite + Tailwind + TypeScript.
+- `/backend`: Server Node.js + Express + MongoDB + Socket.io + TypeScript.
+- `/rumahijo_arduino`: Firmware ESP32 (C++/Arduino).
 
+---
+
+## 🚀 Persiapan & Instalasi
+
+### 1. Backend Setup
+
+Masuk ke folder `backend`, lalu install dependensi:
+
+```bash
+cd backend
+npm install
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/raihan144piksel/rumahijo.git
-git branch -M main
-git push -uf origin main
+
+Buat file `.env` di folder `backend/` dengan isi sebagai berikut:
+
+```env
+PORT=3000
+MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/smartfarm
+JWT_SECRET=rahasia_super_kuat_anda
+MQTT_URL=mqtts://broker_address:port
+MQTT_USER=username_mqtt
+MQTT_PASS=password_mqtt
+TG_TOKEN=token_bot_telegram_anda
+TG_CHAT_ID=id_chat_anda
 ```
 
-## Integrate with your tools
+> [!IMPORTANT]
+> Backend menggunakan pola **Fail-Fast**. Jika ada variabel di atas yang tidak diisi, server tidak akan berjalan.
 
-* [Set up project integrations](https://gitlab.com/raihan144piksel/rumahijo/-/settings/integrations)
+Jalankan server:
 
-## Collaborate with your team
+```bash
+npm run dev
+```
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### 2. Frontend Setup
 
-## Test and Deploy
+Masuk ke folder `frontend`, lalu install dependensi:
 
-Use the built-in continuous integration in GitLab.
+```bash
+cd frontend
+npm install
+```
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+Buat file `.env` di folder `frontend/`:
 
-***
+```env
+VITE_API_BASE_URL=http://localhost:3000/api
+VITE_API_URL=http://localhost:3000/
+```
 
-# Editing this README
+Jalankan dashboard:
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```bash
+npm run dev
+```
 
-## Suggestions for a good README
+### 3. Firmware ESP32
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+1. Buka file di folder `/rumahijo_arduino/rumahijo_arduino.ino` menggunakan Arduino IDE.
+2. Edit file `config.h` dan lengkapi konfigurasi berikut:
 
-## Name
-Choose a self-explaining name for your project.
+   ```cpp
+   #ifndef CONFIG_H
+   #define CONFIG_H
+   // MQTT Broker
+   const char* MQTT_SERVER    = "alamat_broker_anda";
+   const int   MQTT_PORT      = 8883; // Port SSL
+   const char* MQTT_CLIENT_ID = "nama_bebas";
+   const char* MQTT_USER      = "user_mqtt";
+   const char* MQTT_PASSWORD  = "pass_mqtt";
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+   // MQTT Topics
+   const char* TOPIC_TELEMETRY = "smartfarm/telemetry";  // publish data sensor
+   const char* TOPIC_CONTROL   = "smartfarm/control";    // subscribe perintah dashboard
+   const char* TOPIC_SETTINGS  = "smartfarm/settings";   // subscribe pengaturan threshold
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+   // Telegram (Opsional - Jika ingin notif dari alat)
+   const char* TG_TOKEN       = "token_bot";
+   const char* TG_CHAT_ID     = "id_chat";
+   #endif
+   ```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+3. Install library yang dibutuhkan: `WiFiManager`, `PubSubClient`, `ArduinoJson`, `DHT sensor library`.
+4. Upload ke ESP32.
+5. Setelah menyala, hubungkan HP Anda ke WiFi **"SEMAI-SmartFarm"** (Pass: `admin123`) untuk mengatur koneksi internet alat.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+---
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## 🔌 API Reference
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+Semua endpoint kecuali login dilindungi oleh middleware autentikasi. Anda harus menyertakan token dalam header: `Authorization: Bearer <your_token>`.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### Auth
+- `POST /api/auth/login`: Autentikasi user dan mendapatkan JWT.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### Telemetry
+- `GET /api/telemetry?filter=realtime_30m`: Mendapatkan data sensor dalam rentang 30 menit terakhir.
+- `GET /api/telemetry?filter=hourly_5m`: Mendapatkan data agregasi per 5 menit untuk rentang 24 jam.
+- `GET /api/telemetry/analytics`: Mendapatkan ringkasan statistik (rata-rata, max, min suhu).
+- `GET /api/telemetry/download`: Mengunduh log sensor dalam format CSV.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+### Control & Settings
+- `POST /api/control`: Mengirim perintah manual ke ESP32 (on/off relay).
+- `GET /api/settings`: Mengambil konfigurasi ambang batas (threshold) saat ini.
+- `POST /api/settings`: Memperbarui threshold dan mengirimkan sinyal pembaruan ke ESP32 via MQTT.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+---
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## 🛡️ Keamanan & Autentikasi
 
-## License
-For open source projects, say how it is licensed.
+Proyek ini menerapkan standar keamanan industri untuk melindungi data dan akses perangkat:
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+1.  **Bcrypt Hashing**: Kata sandi pengguna tidak disimpan dalam bentuk teks biasa. Kita menggunakan algoritma `bcrypt` dengan *salt* untuk mengenkripsi password sebelum disimpan ke database, melindunginya dari serangan *rainbow table*.
+2.  **JSON Web Token (JWT)**: Setelah login berhasil, server akan mengeluarkan token terenkripsi. Token ini digunakan oleh Frontend untuk membuktikan identitasnya pada setiap request ke API tanpa perlu mengirim ulang password.
+3.  **Rate Limiting**: Endpoint login dilindungi oleh *rate limiter* untuk mencegah serangan *brute-force*.
+4.  **Protected Routes**: Middleware pada backend memastikan bahwa hanya pengguna dengan token valid yang dapat melihat data sensor atau mengontrol perangkat farm.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 18, TypeScript, Tailwind CSS, Lucide Icons, Recharts, Axios.
+- **Backend**: Node.js, Express, TypeScript, MongoDB (Mongoose), Socket.io, MQTT.js.
+- **Firmware**: C++, Arduino Framework, WiFiManager, PubSubClient.
+
+---
+
+## ☁️ Cara Deploy (Production)
+
+### Backend
+
+1. Build TypeScript ke JavaScript: `npm run build` (jika script tersedia) atau gunakan `tsx` untuk eksekusi langsung.
+2. Gunakan **PM2** agar server tetap menyala:
+   ```bash
+   pm2 start server.ts --interpreter tsx
+   ```
+
+### Frontend
+
+1. Build aplikasi: `npm run build`.
+2. Upload folder `dist/` ke provider hosting statis seperti **Vercel**, **Netlify**, atau **Cloudflare Pages**.
+3. Pastikan konfigurasi `rewrites` di `vercel.json` sudah aktif agar Single Page Application (SPA) berjalan lancar.
+
+---
+
+## 📄 Lisensi
+
+Proyek ini bersifat open-source. Silakan modifikasi sesuai kebutuhan Anda.
+
+**SEMAI - Solusi Modern Pertanian Indonesia**

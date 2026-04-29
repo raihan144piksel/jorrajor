@@ -26,12 +26,13 @@
  * ============================================================
  */
 
-#include <WiFi.h>
+#include <WiFiManager.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <DHT.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
+#include <Preferences.h>
 #include "config.h"
 
 // ─────────────────────────────────────────────
@@ -46,11 +47,11 @@
 #define RELAY_LAMPU  25
 
 // ─────────────────────────────────────────────
-//  THRESHOLD
+//  THRESHOLD (Dinamis dari Preferences)
 // ─────────────────────────────────────────────
-#define SUHU_THRESHOLD   30.0   // °C  — kipas ON jika suhu > nilai ini
-#define SOIL_THRESHOLD   40.0   // %   — pompa ON jika tanah < nilai ini
-#define CAHAYA_THRESHOLD 50.0   // %   — lampu ON jika cahaya < nilai ini
+float suhuThreshold   = 30.0;   // °C  — kipas ON jika suhu > nilai ini
+float soilThreshold   = 40.0;   // %   — pompa ON jika tanah < nilai ini
+float cahayaThreshold = 50.0;   // %   — lampu ON jika cahaya < nilai ini
 
 // ─────────────────────────────────────────────
 //  KALIBRASI ADC
@@ -96,6 +97,7 @@ struct RelayControl {
 DHT          dht(DHTPIN, DHTTYPE);
 WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
+Preferences preferences;
 
 // ─────────────────────────────────────────────
 //  DATA RELAY
@@ -154,20 +156,36 @@ unsigned long lastBaca = 0;
 
 
 // ═══════════════════════════════════════════════════════
-//  WIFI — Koneksi & reconnect
+//  WIFI — Koneksi & reconnect (WiFiManager)
 // ═══════════════════════════════════════════════════════
-void koneksiWiFi() {
-  if (WiFi.status() == WL_CONNECTED) return;
 
-  Serial.printf("\n[WiFi] Menghubungkan ke: %s\n", WIFI_SSID);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+void setupWiFi() {
+  Serial.println("\n[WiFi] Memulai WiFiManager...");
+  WiFiManager wm;
+  
+  // Timeout 3 menit agar jika mati listrik dan router lambat nyala, 
+  // ESP tidak nyangkut selamanya sebagai Access Point.
+  wm.setConfigPortalTimeout(180); 
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
+  // AP bernama "SEMAI-SmartFarm", pass "admin123"
+  if (!wm.autoConnect("SEMAI-SmartFarm", "admin123")) {
+    Serial.println("[WiFi] Gagal konek atau timeout portal.");
+    // Biarkan saja, jangan ESP.restart(), biarkan offline mode berjalan
+  } else {
+    Serial.printf("\n[WiFi] Terhubung! IP: %s\n", WiFi.localIP().toString().c_str());
   }
-  Serial.printf("\n[WiFi] Terhubung! IP: %s\n", WiFi.localIP().toString().c_str());
+}
+
+unsigned long lastWiFiCheck = 0;
+void jagaWiFi() {
+  if (WiFi.status() != WL_CONNECTED) {
+    unsigned long now = millis();
+    if (now - lastWiFiCheck >= 10000) { // Coba reconnect setiap 10 detik
+      lastWiFiCheck = now;
+      Serial.println("[WiFi] Terputus, mencoba reconnect...");
+      WiFi.reconnect(); // WiFi otomatis menggunakan kredensial tersimpan
+    }
+  }
 }
 
 
@@ -197,9 +215,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     } else {
       digitalWrite(RELAY_KIPAS, LOW);
       rcKipas.statusOn  = false;
-      rcKipas.state     = STATE_COOLDOWN;
-      rcKipas.timerMulai = millis();
-      Serial.println("[Override] Kipas: MANUAL OFF → cooldown");
+      rcKipas.state     = STATE_IDLE; // Reset ke auto-mode normal
+      Serial.println("[Override] Kipas: MANUAL OFF → auto-mode resumed");
     }
   }
   if (doc.containsKey("pompa")) {
@@ -211,9 +228,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     } else {
       digitalWrite(RELAY_POMPA, LOW);
       rcPompa.statusOn   = false;
-      rcPompa.state      = STATE_COOLDOWN;
-      rcPompa.timerMulai = millis();
-      Serial.println("[Override] Pompa: MANUAL OFF → cooldown");
+      rcPompa.state      = STATE_IDLE;
+      Serial.println("[Override] Pompa: MANUAL OFF → auto-mode resumed");
     }
   }
   if (doc.containsKey("lampu")) {
@@ -225,27 +241,45 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     } else {
       digitalWrite(RELAY_LAMPU, LOW);
       rcLampu.statusOn   = false;
-      rcLampu.state      = STATE_COOLDOWN;
-      rcLampu.timerMulai = millis();
-      Serial.println("[Override] Lampu: MANUAL OFF → cooldown");
+      rcLampu.state      = STATE_IDLE;
+      Serial.println("[Override] Lampu: MANUAL OFF → auto-mode resumed");
     }
+  }
+  
+  // Terima pengaturan Threshold
+  if (doc.containsKey("temp") || doc.containsKey("hum") || doc.containsKey("light")) {
+    if (doc.containsKey("temp")) suhuThreshold = doc["temp"].as<float>();
+    if (doc.containsKey("hum")) soilThreshold = doc["hum"].as<float>();
+    if (doc.containsKey("light")) cahayaThreshold = doc["light"].as<float>();
+    
+    preferences.putFloat("suhu", suhuThreshold);
+    preferences.putFloat("soil", soilThreshold);
+    preferences.putFloat("cahaya", cahayaThreshold);
+    Serial.printf("[Settings] Update -> Suhu:%.1f Soil:%.1f Cahaya:%.1f\n", suhuThreshold, soilThreshold, cahayaThreshold);
   }
 }
 
 
 // ═══════════════════════════════════════════════════════
-//  MQTT — Koneksi & reconnect + subscribe
+//  MQTT — Koneksi & reconnect + subscribe (NON-BLOCKING)
 // ═══════════════════════════════════════════════════════
-void koneksiMQTT() {
-  while (!mqttClient.connected()) {
-    Serial.printf("[MQTT] Konek ke %s...\n", MQTT_SERVER);
-    if (mqttClient.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD)) {
-      Serial.println("[MQTT] Terhubung!");
-      mqttClient.subscribe(TOPIC_CONTROL);
-      Serial.printf("[MQTT] Subscribe: %s\n", TOPIC_CONTROL);
-    } else {
-      Serial.printf("[MQTT] Gagal rc=%d, coba lagi 3 detik...\n", mqttClient.state());
-      delay(3000);
+unsigned long lastMQTTCheck = 0;
+
+void jagaMQTT() {
+  if (!mqttClient.connected() && WiFi.status() == WL_CONNECTED) {
+    unsigned long now = millis();
+    if (now - lastMQTTCheck >= 5000) { // Coba reconnect setiap 5 detik
+      lastMQTTCheck = now;
+      Serial.printf("[MQTT] Konek ke %s...\n", MQTT_SERVER);
+      
+      if (mqttClient.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD)) {
+        Serial.println("[MQTT] Terhubung!");
+        mqttClient.subscribe(TOPIC_CONTROL);
+        mqttClient.subscribe(TOPIC_SETTINGS);
+        Serial.printf("[MQTT] Subscribe: %s & %s\n", TOPIC_CONTROL, TOPIC_SETTINGS);
+      } else {
+        Serial.printf("[MQTT] Gagal rc=%d\n", mqttClient.state());
+      }
     }
   }
 }
@@ -395,24 +429,24 @@ void updateRelay(RelayControl &rc, int pin, bool kondisiTerpenuhi,
 //   );
 // }
 void kontrolRelay() {
-  // Kipas — kondisi: suhu > 30°C
+  // Kipas — kondisi: suhu > suhuThreshold
   updateRelay(
     rcKipas, RELAY_KIPAS,
-    (suhu > SUHU_THRESHOLD),
+    (suhu > suhuThreshold),
     overrideKipas, "KIPAS"
   );
 
-  // Pompa — kondisi: tanah < 40%
+  // Pompa — kondisi: tanah < soilThreshold
   updateRelay(
     rcPompa, RELAY_POMPA,
-    (tanah < SOIL_THRESHOLD),
+    (tanah < soilThreshold),
     overridePompa, "POMPA"
   );
 
-  // Lampu — kondisi: cahaya < 50%
+  // Lampu — kondisi: cahaya < cahayaThreshold
   updateRelay(
     rcLampu, RELAY_LAMPU,
-    (cahaya < CAHAYA_THRESHOLD),
+    (cahaya < cahayaThreshold),
     overrideLampu, "LAMPU"
   );
 }
@@ -453,6 +487,13 @@ void setup() {
   delay(500);
   Serial.println("\n=== ESP32 Smart Farm v3.0 ===");
 
+  // Muat Threshold dari Non-Volatile Memory (Flash)
+  preferences.begin("smartfarm", false); // namespace, false = read/write
+  suhuThreshold = preferences.getFloat("suhu", 30.0);
+  soilThreshold = preferences.getFloat("soil", 40.0);
+  cahayaThreshold = preferences.getFloat("cahaya", 50.0);
+  Serial.printf("[Init] Loaded Thresholds -> Suhu:%.1f Soil:%.1f Cahaya:%.1f\n", suhuThreshold, soilThreshold, cahayaThreshold);
+
   // Init relay — semua OFF dulu
   pinMode(RELAY_POMPA, OUTPUT);
   pinMode(RELAY_KIPAS, OUTPUT);
@@ -463,14 +504,13 @@ void setup() {
 
   dht.begin();
 
-  // Koneksi WiFi (loop sampai terhubung)
-  koneksiWiFi();
+  // Koneksi WiFi dengan WiFiManager
+  setupWiFi();
 
-  // Setup & koneksi MQTT (loop sampai terhubung)
+  // Setup MQTT
   espClient.setInsecure();
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
-  koneksiMQTT();
 
   Serial.println("[System] Siap!\n");
 }
@@ -480,12 +520,13 @@ void setup() {
 //  LOOP UTAMA — tanpa delay(), pakai millis()
 // ═══════════════════════════════════════════════════════
 void loop() {
-  // Jaga koneksi WiFi
-  koneksiWiFi();
-
-  // Jaga koneksi MQTT
-  if (!mqttClient.connected()) koneksiMQTT();
-  mqttClient.loop();  // proses pesan masuk (callback)
+  // Jaga koneksi WiFi & MQTT secara Non-Blocking
+  jagaWiFi();
+  jagaMQTT();
+  
+  if (mqttClient.connected()) {
+    mqttClient.loop();  // proses pesan masuk (callback)
+  }
 
   // Baca sensor + kontrol relay + publish setiap INTERVAL_BACA ms
   unsigned long now = millis();
