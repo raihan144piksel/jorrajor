@@ -10,4 +10,28 @@ export default defineConfig({
     babel({ presets: [reactCompilerPreset()] }),
     tailwindcss(),
   ],
+  build: {
+    rolldownOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react") || id.includes("react-router-dom")) {
+              return "vendor-react";
+            }
+            if (id.includes("recharts")) {
+              return "vendor-charts";
+            }
+            if (
+              id.includes("axios") ||
+              id.includes("mqtt") ||
+              id.includes("socket.io-client")
+            ) {
+              return "vendor-utils";
+            }
+            return "vendor";
+          }
+        },
+      },
+    },
+  },
 });
