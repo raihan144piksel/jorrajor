@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from "mongoose";
 
 export interface ITelemetry extends Document {
+  device_id: string;
   suhu: number;
   kelembapan_udara: number;
   tanah: number;
@@ -15,6 +16,7 @@ export interface ITelemetry extends Document {
 }
 
 const telemetrySchema: Schema = new mongoose.Schema({
+  device_id: { type: String, default: "UNKNOWN" },
   suhu: Number,
   kelembapan_udara: Number,
   tanah: Number,

@@ -45,7 +45,7 @@ router.post("/login", loginLimiter, async (req: Request, res: Response): Promise
     );
 
     res.json({ token });
-  } catch (err) {
+  } catch {
     res.status(500).json({ message: "Server Error" });
   }
 });

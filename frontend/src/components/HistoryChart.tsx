@@ -117,7 +117,9 @@ const HistoryChart: React.FC<HistoryChartProps> = ({ data }) => {
                             })
                         }
                         stroke="#64748b"
-                        fontSize={12}
+                        fontSize={10}
+                        interval="preserveStartEnd"
+                        minTickGap={30} // Mencegah label bertumpuk
                     />
                     <YAxis stroke="#64748b" fontSize={12} />
                     <Tooltip

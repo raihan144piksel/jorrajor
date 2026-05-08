@@ -62,6 +62,9 @@ export const initMqtt = (io: Server): void => {
           io.emit("esp_status", true);
         }
         const data = JSON.parse(message.toString());
+
+        // INJEKSI SERVER TIME agar data selalu punya timestamp valid
+        data.timestamp = new Date().toISOString();
         
         // TETAP KIRIM KE FRONTEND SECARA LIVE agar UI terasa responsif
         io.emit("telemetry_live", data);
@@ -76,6 +79,7 @@ export const initMqtt = (io: Server): void => {
 
         // 1. Parsing & Destructuring data
         const {
+          device_id,
           suhu,
           kelembapan_udara,
           tanah,
@@ -97,7 +101,7 @@ export const initMqtt = (io: Server): void => {
 
         // DEADBAND FILTER LOGIC
         // Cek apakah ada perubahan yang "signifikan"
-        const isSignificantChange = 
+        const isSignificantChange =
           Math.abs(pSuhu - lastSavedData.suhu) >= 0.5 ||
           Math.abs(pKelembapan - lastSavedData.kelembapan_udara) >= 2.0 ||
           Math.abs(pTanah - lastSavedData.tanah) >= 2.0 ||
@@ -107,11 +111,12 @@ export const initMqtt = (io: Server): void => {
           status_lampu !== lastSavedData.status_lampu;
 
         // Cek apakah sudah kelamaan tidak nyimpen data (Heartbeat Save)
-        const isTimeForced = (now - lastSaveTime) >= FORCE_SAVE_INTERVAL;
+        const isTimeForced = now - lastSaveTime >= FORCE_SAVE_INTERVAL;
 
         // 2. Simpan ke Database JIKA lolos filter
         if (isSignificantChange || isTimeForced) {
           await Telemetry.create({
+            device_id: device_id || "ESP32_MAIN",
             suhu: pSuhu,
             kelembapan_udara: pKelembapan,
             tanah: pTanah,
@@ -122,6 +127,7 @@ export const initMqtt = (io: Server): void => {
             state_kipas,
             state_pompa,
             state_lampu,
+            timestamp: data.timestamp, // Gunakan timestamp yang sama dengan socket
           });
 
           // Update data terakhir yang disimpan
@@ -139,7 +145,7 @@ export const initMqtt = (io: Server): void => {
           console.log(`💾 Saved to DB (Trigger: ${isSignificantChange ? 'Data Changed' : 'Time Forced'})`);
         }
 
-        let pesanNotif: string[] = [];
+        const pesanNotif: string[] = [];
 
         const kMsg = getNotificationMessage(
           status_kipas,

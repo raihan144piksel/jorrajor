@@ -459,7 +459,8 @@ void publishData() {
   // Label state untuk info di dashboard
   const char* stateLabel[] = { "IDLE", "TRIGGERED", "ON", "COOLDOWN" };
 
-  StaticJsonDocument<400> doc;
+  JsonDocument doc;
+  doc["device_id"]        = DEVICE_ID;
   doc["suhu"]             = suhu;
   doc["kelembapan_udara"] = humUdara;
   doc["tanah"]            = tanah;

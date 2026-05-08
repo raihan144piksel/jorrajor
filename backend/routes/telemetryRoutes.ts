@@ -82,9 +82,9 @@ router.get(
       }
 
       res.json(result);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error telemetry API:", err);
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ error: (err as Error).message });
     }
   },
 );
@@ -141,13 +141,13 @@ router.get(
         timestamp: { $gte: satuHariLalu },
       });
 
-      let filter: any = { timestamp: { $gte: satuHariLalu } };
+      let filter: Record<string, unknown> = { timestamp: { $gte: satuHariLalu } };
       if (countCheck === 0) {
         filter = {};
         console.log("⚠️ Data 24j kosong, menggunakan mode Global Scan");
       }
 
-      const [statsResult, docTerendah] = await Promise.all([
+      const [statsResult, docTerendah, totalSemua] = await Promise.all([
         Telemetry.aggregate([
           { $match: filter },
           {
@@ -156,18 +156,18 @@ router.get(
               rataSuhu: { $avg: "$suhu" },
               maxSuhu: { $max: "$suhu" },
               minSuhu: { $min: "$suhu" },
-              totalData: { $sum: 1 },
             },
           },
         ]),
         Telemetry.findOne(filter).sort({
           tanah: 1,
         }),
+        Telemetry.countDocuments({}), // Total data seluruh waktu
       ]);
 
       const stats = statsResult[0];
 
-      if (!stats) {
+      if (!stats && totalSemua === 0) {
         res.json({
           rataSuhu: "--",
           maxSuhu: "--",
@@ -180,10 +180,10 @@ router.get(
       }
 
       res.json({
-        rataSuhu: stats.rataSuhu ? stats.rataSuhu.toFixed(1) : "--",
-        maxSuhu: stats.maxSuhu ? stats.maxSuhu.toFixed(1) : "--",
-        minSuhu: stats.minSuhu ? stats.minSuhu.toFixed(1) : "--",
-        totalMenit: stats.totalData || 0,
+        rataSuhu: stats?.rataSuhu ? stats.rataSuhu.toFixed(1) : "--",
+        maxSuhu: stats?.maxSuhu ? stats.maxSuhu.toFixed(1) : "--",
+        minSuhu: stats?.minSuhu ? stats.minSuhu.toFixed(1) : "--",
+        totalMenit: totalSemua || 0,
         jamTanahKering: docTerendah
           ? new Date(docTerendah.timestamp).toLocaleTimeString([], {
               hour: "2-digit",

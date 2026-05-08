@@ -36,9 +36,12 @@ export const getAnalytics = async (): Promise<AnalyticsData> => {
     return response.data;
 };
 
-export const sendControl = async (device: string, status: boolean): Promise<any> => {
-    const response = await apiClient.post("/control", { device, status });
-    return response.data;
+export const sendControl = async (
+  device: string,
+  status: boolean,
+): Promise<{ message: string }> => {
+  const response = await apiClient.post("/control", { device, status });
+  return response.data;
 };
 
 export const login = async (username: string, password: string): Promise<{ token: string }> => {

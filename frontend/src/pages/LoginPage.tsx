@@ -22,8 +22,9 @@ const LoginPage: React.FC = () => {
 
             // Langsung pindah ke dashboard setelah sukses
             navigate("/dashboard");
-        } catch (err: any) {
-            setError(err.response?.data?.message || "Gagal Login!");
+        } catch (err: unknown) {
+            const error = err as { response?: { data?: { message?: string } } };
+            setError(error.response?.data?.message || "Gagal Login!");
         } finally {
             setLoading(false);
         }

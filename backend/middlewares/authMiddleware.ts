@@ -3,7 +3,7 @@ import type { Request, Response, NextFunction } from "express";
 import { ENV } from "../config/env.js";
 
 export interface AuthRequest extends Request {
-  user?: any;
+  user?: string | jwt.JwtPayload | undefined;
 }
 
 export const authenticateToken = (
@@ -17,7 +17,7 @@ export const authenticateToken = (
     return;
   }
 
-  jwt.verify(token, ENV.JWT_SECRET, (err: any, user: any) => {
+  jwt.verify(token, ENV.JWT_SECRET, (err, user) => {
     if (err) {
       res.status(403).json({ message: "Token tidak valid!" });
       return;
