@@ -1,7 +1,6 @@
 import React from "react";
 import { Download, LogOut } from "lucide-react";
 import StatusBadge from "./StatusBadge";
-import { getDownloadUrl } from "../services/api";
 
 interface DashboardHeaderProps {
     isOnline: boolean;
@@ -10,6 +9,13 @@ interface DashboardHeaderProps {
 }
 
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ isOnline, isEspOnline, onLogout }) => {
+    const getDownloadUrl = () => {
+        const token = localStorage.getItem("app_token");
+        const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
+        const url = `${baseUrl}/api/telemetry/download?token=${token}`;
+        window.open(url, "_blank");
+    };
+
     return (
         <header className="flex justify-between items-center bg-slate-800 p-6 rounded-2xl shadow-xl">
             <div>
@@ -18,7 +24,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ isOnline, isEspOnline
                     Greenhouse Zone A - Live Monitoring
                 </p>
             </div>
-            {/* BAGIAN STATUS */}
+            
             <div className="flex gap-4">
                 <StatusBadge
                     label="Server Status"
@@ -35,6 +41,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ isOnline, isEspOnline
                     pulse={true}
                 />
             </div>
+
             <div className="flex items-center gap-4">
                 <button
                     onClick={getDownloadUrl}
@@ -47,7 +54,8 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ isOnline, isEspOnline
                     onClick={onLogout}
                     className="flex items-center gap-2 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white px-4 py-2 rounded-lg border border-red-600/50 transition-all"
                 >
-                    <LogOut size={18} /> Logout
+                    <LogOut size={18} />
+                    <span>Keluar</span>
                 </button>
             </div>
         </header>

@@ -16,13 +16,13 @@ interface TelemetryTableProps {
 }
 
 const TelemetryTable: React.FC<TelemetryTableProps> = ({ data }) => {
-  // Ambil 30 data terbaru saja untuk menjaga performa & tampilan
+  // Ambil 50 data terbaru saja untuk menjaga performa
   const sortedData = [...data]
     .sort(
       (a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
     )
-    .slice(0, 30);
+    .slice(0, 50);
 
   return (
     <div className="bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-700">
@@ -32,7 +32,7 @@ const TelemetryTable: React.FC<TelemetryTableProps> = ({ data }) => {
           Log Riwayat Sensor
         </h2>
         <span className="text-sm text-slate-400 bg-slate-900 px-3 py-1 rounded-full">
-          {sortedData.length} Data Terkini
+          Total {data.length} Log Terdeteksi
         </span>
       </div>
 

@@ -41,6 +41,8 @@ Buat file `.env` di folder `backend/` dengan isi sebagai berikut:
 PORT=3000
 MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/smartfarm
 JWT_SECRET=rahasia_super_kuat_anda
+FRONTEND_URL="https://rumahijo.vercel.app/"
+NODE_ENV="production"
 MQTT_URL=mqtts://broker_address:port
 MQTT_USER=username_mqtt
 MQTT_PASS=password_mqtt
@@ -87,6 +89,10 @@ npm run dev
    ```cpp
    #ifndef CONFIG_H
    #define CONFIG_H
+
+   // DEVICE ID
+   const char* DEVICE_ID    = "device0";
+
    // MQTT Broker
    const char* MQTT_SERVER    = "alamat_broker_anda";
    const int   MQTT_PORT      = 8883; // Port SSL
@@ -116,15 +122,18 @@ npm run dev
 Semua endpoint kecuali login dilindungi oleh middleware autentikasi. Anda harus menyertakan token dalam header: `Authorization: Bearer <your_token>`.
 
 ### Auth
+
 - `POST /api/auth/login`: Autentikasi user dan mendapatkan JWT.
 
 ### Telemetry
+
 - `GET /api/telemetry?filter=realtime_30m`: Mendapatkan data sensor dalam rentang 30 menit terakhir.
 - `GET /api/telemetry?filter=hourly_5m`: Mendapatkan data agregasi per 5 menit untuk rentang 24 jam.
 - `GET /api/telemetry/analytics`: Mendapatkan ringkasan statistik (rata-rata, max, min suhu).
 - `GET /api/telemetry/download`: Mengunduh log sensor dalam format CSV.
 
 ### Control & Settings
+
 - `POST /api/control`: Mengirim perintah manual ke ESP32 (on/off relay).
 - `GET /api/settings`: Mengambil konfigurasi ambang batas (threshold) saat ini.
 - `POST /api/settings`: Memperbarui threshold dan mengirimkan sinyal pembaruan ke ESP32 via MQTT.
@@ -135,9 +144,9 @@ Semua endpoint kecuali login dilindungi oleh middleware autentikasi. Anda harus 
 
 Proyek ini menerapkan standar keamanan industri untuk melindungi data dan akses perangkat:
 
-1.  **Bcrypt Hashing**: Kata sandi pengguna tidak disimpan dalam bentuk teks biasa. Kita menggunakan algoritma `bcrypt` dengan *salt* untuk mengenkripsi password sebelum disimpan ke database, melindunginya dari serangan *rainbow table*.
+1.  **Bcrypt Hashing**: Kata sandi pengguna tidak disimpan dalam bentuk teks biasa. Kita menggunakan algoritma `bcrypt` dengan _salt_ untuk mengenkripsi password sebelum disimpan ke database, melindunginya dari serangan _rainbow table_.
 2.  **JSON Web Token (JWT)**: Setelah login berhasil, server akan mengeluarkan token terenkripsi. Token ini digunakan oleh Frontend untuk membuktikan identitasnya pada setiap request ke API tanpa perlu mengirim ulang password.
-3.  **Rate Limiting**: Endpoint login dilindungi oleh *rate limiter* untuk mencegah serangan *brute-force*.
+3.  **Rate Limiting**: Endpoint login dilindungi oleh _rate limiter_ untuk mencegah serangan _brute-force_.
 4.  **Protected Routes**: Middleware pada backend memastikan bahwa hanya pengguna dengan token valid yang dapat melihat data sensor atau mengontrol perangkat farm.
 
 ---

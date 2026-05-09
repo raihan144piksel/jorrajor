@@ -75,7 +75,7 @@ export const initMqtt = (io: Server): void => {
           espOnline = false;
           io.emit("esp_status", false);
           console.log("⚠️ ESP32 Offline (Timeout)");
-        }, 15000);
+        }, 30000);
 
         // 1. Parsing & Destructuring data
         const {

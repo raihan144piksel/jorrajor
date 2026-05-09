@@ -11,7 +11,10 @@ export const authenticateToken = (
   res: Response,
   next: NextFunction
 ): void => {
-  const token = req.headers["authorization"]?.split(" ")[1];
+  // Ambil token dari Header (biasa) atau Query String (khusus download)
+  const authHeader = req.headers["authorization"];
+  const token = authHeader ? authHeader.split(" ")[1] : (req.query.token as string);
+
   if (!token) {
     res.status(401).json({ message: "Akses ditolak, token hilang!" });
     return;
