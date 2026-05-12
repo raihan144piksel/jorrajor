@@ -64,7 +64,7 @@ float cahayaThreshold = 50.0;   // %   — lampu ON jika cahaya < nilai ini
 // ─────────────────────────────────────────────
 //  TIMER (dalam milidetik)
 // ─────────────────────────────────────────────
-const unsigned long INTERVAL_BACA    = 10000;    // baca sensor setiap 5 detik
+const unsigned long INTERVAL_BACA    = 5000;    // baca sensor setiap 5 detik
 const unsigned long DURASI_TRIGGER   = 10000;   // kondisi harus bertahan 10 detik → relay ON
 const unsigned long DURASI_ON_POMPA  = 15000;   // pompa menyala minimal 15 detik
 const unsigned long DURASI_ON_KIPAS  = 45000;   // kipas menyala minimal 45 detik
@@ -188,6 +188,7 @@ void jagaWiFi() {
   }
 }
 
+void publishData();
 
 // ═══════════════════════════════════════════════════════
 //  MQTT CALLBACK — terima perintah override dari dashboard
@@ -257,6 +258,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     preferences.putFloat("cahaya", cahayaThreshold);
     Serial.printf("[Settings] Update -> Suhu:%.1f Soil:%.1f Cahaya:%.1f\n", suhuThreshold, soilThreshold, cahayaThreshold);
   }
+
+  publishData(); // Segera publish data terbaru setelah menerima perintah
 }
 
 
