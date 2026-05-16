@@ -5,6 +5,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { connectDB } from "./config/db.js";
 import { initMqtt, isEspOnline, getMqttClient } from "./services/mqttService.js";
+import { startCleanupJob } from "./services/cleanupService.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import telemetryRoutes from "./routes/telemetryRoutes.js";
@@ -57,6 +58,8 @@ const gracefulShutdown = () => {
 
 process.on("SIGTERM", gracefulShutdown);
 process.on("SIGINT", gracefulShutdown);
+
+startCleanupJob();
 
 httpServer.listen(ENV.PORT, () =>
   console.log(`🚀 Server + Socket.io running on port ${ENV.PORT}`)

@@ -5,7 +5,7 @@ import { getTelemetry, getAnalytics, sendControl } from "../services/api";
 import { TelemetryData, AnalyticsData } from "../types";
 import DashboardHeader from "../components/DashboardHeader";
 import SensorGrid from "../components/SensorGrid";
-import ControlPanel from "../components/ControlPanel";
+import ActuatorGrid from "../components/ActuatorGrid";
 import HistoryChart from "../components/HistoryChart";
 import AnalyticsGrid from "../components/AnalyticsGrid";
 import TelemetryTable from "../components/TelemetryTable";
@@ -34,6 +34,7 @@ const Dashboard: React.FC = () => {
   // Dual-Stream History
   const [liveHistory, setLiveHistory] = useState<TelemetryData[]>([]);
   const [analyticsHistory, setAnalyticsHistory] = useState<TelemetryData[]>([]);
+  const [analyticsRange, setAnalyticsRange] = useState("24h");
   
   const [isOnline, setIsOnline] = useState(false);
   const [isEspOnline, setIsEspOnline] = useState(false);
@@ -56,16 +57,21 @@ const Dashboard: React.FC = () => {
 
   // 1. Initial Load for Live History
   useEffect(() => {
-    getTelemetry("realtime_30m").then(res => setLiveHistory(res || []));
+    getTelemetry("30m", "none").then(res => setLiveHistory(res || []));
     refreshStats();
   }, []);
 
-  // 2. Load Analytics Data when tab changes
+  // 2. Load Analytics Data when tab or range changes
   useEffect(() => {
-    if (activeTab === "analytics" && analyticsHistory.length === 0) {
-      getTelemetry("hourly_5m").then(res => setAnalyticsHistory(res || []));
+    if (activeTab === "analytics") {
+      let bin = "5m";
+      if (analyticsRange === "30d") bin = "1d";
+      else if (analyticsRange === "7d") bin = "1h";
+      else if (analyticsRange === "1h") bin = "1m";
+      
+      getTelemetry(analyticsRange, bin).then(res => setAnalyticsHistory(res || []));
     }
-  }, [activeTab, analyticsHistory.length]);
+  }, [activeTab, analyticsRange]);
 
   // 3. Socket.io Connection
   useEffect(() => {
@@ -109,16 +115,9 @@ const Dashboard: React.FC = () => {
     };
   }, []);
 
-  const handleControl = async (device: string, currentStatus: boolean) => {
-    const newStatus = !currentStatus;
-    console.log(`[Override] Mengirim perintah: ${device} -> ${newStatus ? 'ON' : 'OFF'}`);
-    
+  const handleControl = async (device: string, mode: number) => {
     try {
-      await sendControl(device, newStatus);
-      console.log(`[Override] Berhasil: ${device} sekarang ${newStatus ? 'ON' : 'OFF'}`);
-      
-      const key = `status_${device}` as keyof TelemetryData;
-      setData((prev) => ({ ...prev, [key]: newStatus }));
+      await sendControl(device, mode);
     } catch (err) {
       console.error(`[Override] Gagal mengontrol ${device}:`, err);
     }
@@ -130,10 +129,10 @@ const Dashboard: React.FC = () => {
         return (
           <div className="space-y-8 animate-in fade-in duration-500">
             <SensorGrid data={data} />
-            <ControlPanel data={data} onControl={handleControl} />
+            <ActuatorGrid data={data} onControl={handleControl} />
             
             <div className="bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-700/50">
-              <h2 className="text-xl font-bold text-white mb-6">Aliran Data Langsung (30m)</h2>
+              <h2 className="text-xl font-bold text-white mb-6">Grafik Real-time</h2>
               <HistoryChart data={liveHistory} />
             </div>
           </div>
@@ -144,17 +143,35 @@ const Dashboard: React.FC = () => {
             <AnalyticsGrid analytics={analytics} />
             
             <div className="bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-700/50">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-white">Tren Strategis (24 Jam)</h2>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500" />
-                  <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Data Agregat Aktif</span>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Tren Strategis ({analyticsRange})</h2>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Data Agregat Aktif</span>
+                  </div>
+                </div>
+                
+                <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
+                  {["1h", "6h", "24h", "7d", "30d"].map((range) => (
+                    <button
+                      key={range}
+                      onClick={() => setAnalyticsRange(range)}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                        analyticsRange === range 
+                          ? "bg-blue-600 text-white shadow-md" 
+                          : "text-slate-400 hover:text-white hover:bg-slate-800"
+                      }`}
+                    >
+                      {range.toUpperCase()}
+                    </button>
+                  ))}
                 </div>
               </div>
               <HistoryChart data={analyticsHistory} />
             </div>
 
-            <TelemetryTable data={liveHistory} />
+            <TelemetryTable />
           </div>
         );
       case "weather":
@@ -188,6 +205,7 @@ const Dashboard: React.FC = () => {
             isOnline={isOnline}
             isEspOnline={isEspOnline}
             onLogout={handleLogout}
+            activeRange={analyticsRange}
           />
           
           {renderContent()}

@@ -25,6 +25,7 @@ export interface ThresholdSettings {
   temp_threshold: number;
   hum_threshold: number;
   light_threshold: number;
+  retention_days: number;
 }
 
 export interface ControlPayload {

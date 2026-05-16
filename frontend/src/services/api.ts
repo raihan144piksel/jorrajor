@@ -26,9 +26,21 @@ apiClient.interceptors.response.use(
     },
 );
 
-export const getTelemetry = async (filter = "20"): Promise<TelemetryData[]> => {
-    const response = await apiClient.get<TelemetryData[]>("/telemetry", { params: { filter } });
+export const getTelemetry = async (range = "30m", bin = "none"): Promise<TelemetryData[]> => {
+    const response = await apiClient.get<TelemetryData[]>("/telemetry", { params: { range, bin } });
     return response.data;
+};
+
+export interface TableResponse {
+  docs: TelemetryData[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export const getTableData = async (page = 1, limit = 50): Promise<TableResponse> => {
+  const response = await apiClient.get<TableResponse>("/telemetry/table", { params: { page, limit } });
+  return response.data;
 };
 
 export const getAnalytics = async (): Promise<AnalyticsData> => {
@@ -37,8 +49,8 @@ export const getAnalytics = async (): Promise<AnalyticsData> => {
 };
 
 export const sendControl = async (
-  device: string,
-  status: boolean,
+    device: string,
+    status: boolean | number,
 ): Promise<{ message: string }> => {
   const response = await apiClient.post("/control", { device, status });
   return response.data;

@@ -12,14 +12,14 @@ const AnalyticsGrid: React.FC<AnalyticsGridProps> = ({ analytics }) => {
       {/* Kartu 1: Rata-rata Suhu */}
       <StatCard
         label="Rata-rata Suhu"
-        value={`${analytics?.rataSuhu || "--"}°C`}
+        value={`${analytics?.rataSuhu ?? "--"}°C`}
         color="border-orange-500"
       />
 
       {/* Kartu 2: Rentang Suhu (Ganti Estimasi Air) */}
       <StatCard
         label="Suhu Terpanas / Terdingin"
-        value={`${analytics?.maxSuhu || "--"}° / ${analytics?.minSuhu || "--"}°`}
+        value={`${analytics?.maxSuhu ?? "--"}° / ${analytics?.minSuhu ?? "--"}°`}
         subValue="Rekor suhu 24 jam terakhir"
         color="border-red-500"
       />
@@ -27,15 +27,15 @@ const AnalyticsGrid: React.FC<AnalyticsGridProps> = ({ analytics }) => {
       {/* Kartu 3: Titik Terkering */}
       <StatCard
         label="Tanah Paling Kering"
-        value={`${analytics?.nilaiTanahKering || "--"}%`}
-        subValue={`Terjadi jam ${analytics?.jamTanahKering || "--"}`}
+        value={`${analytics?.nilaiTanahKering ?? "--"}%`}
+        subValue={`Terjadi jam ${analytics?.jamTanahKering ?? "--"}`}
         color="border-emerald-500"
       />
 
       {/* Kartu 4: Uptime Sistem (Ganti Sistem Optimal) */}
       <StatCard
         label="Log Data (Total)"
-        value={`${analytics?.totalMenit || "--"} Data`}
+        value={`${analytics?.totalMenit ?? "--"} Data`}
         subValue="Total data yang tersimpan"
         color="border-blue-500"
       />

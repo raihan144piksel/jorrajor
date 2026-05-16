@@ -13,7 +13,7 @@ router
     res.json(settings);
   })
   .post(authenticateToken, async (req: Request, res: Response) => {
-    const { temp_threshold, hum_threshold, light_threshold } = req.body;
+    const { temp_threshold, hum_threshold, light_threshold, retention_days } = req.body;
 
     let settings = await Settings.findOne();
     if (!settings) settings = new Settings();
@@ -21,6 +21,9 @@ router
     settings.temp_threshold = temp_threshold;
     settings.hum_threshold = hum_threshold;
     settings.light_threshold = light_threshold;
+    if (retention_days !== undefined) {
+      settings.retention_days = retention_days;
+    }
     settings.updated_at = new Date();
     await settings.save();
 

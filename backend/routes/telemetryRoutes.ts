@@ -10,20 +10,43 @@ router.get(
   authenticateToken,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { filter } = req.query;
+      const rangeStr = (req.query.range as string) || "30m";
+      const binStr = (req.query.bin as string) || "none";
+
+      let msRange = 30 * 60 * 1000;
+      if (rangeStr.endsWith("m")) msRange = parseInt(rangeStr) * 60 * 1000;
+      else if (rangeStr.endsWith("h")) msRange = parseInt(rangeStr) * 60 * 60 * 1000;
+      else if (rangeStr.endsWith("d")) msRange = parseInt(rangeStr) * 24 * 60 * 60 * 1000;
+
+      const startTime = new Date(Date.now() - msRange);
       let result;
 
-      if (filter === "hourly_5m") {
-        const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      if (binStr === "none") {
+        result = await Telemetry.find({ timestamp: { $gte: startTime } }).sort({ timestamp: 1 });
+      } else {
+        let binUnit = "minute";
+        let binSize = 5;
+        
+        if (binStr.endsWith("m")) {
+          binUnit = "minute";
+          binSize = parseInt(binStr);
+        } else if (binStr.endsWith("h")) {
+          binUnit = "hour";
+          binSize = parseInt(binStr);
+        } else if (binStr.endsWith("d")) {
+          binUnit = "day";
+          binSize = parseInt(binStr);
+        }
+
         result = await Telemetry.aggregate([
-          { $match: { timestamp: { $gte: last24h } } },
+          { $match: { timestamp: { $gte: startTime } } },
           {
             $group: {
               _id: {
                 $dateTrunc: {
                   date: "$timestamp",
-                  unit: "minute",
-                  binSize: 5,
+                  unit: binUnit,
+                  binSize: binSize,
                 },
               },
               suhu: { $avg: "$suhu" },
@@ -56,29 +79,11 @@ router.get(
             },
           },
         ]);
+      }
 
-        if (result.length === 0) {
-          const fallbackData = await Telemetry.find()
-            .sort({ timestamp: -1 })
-            .limit(20);
-          result = fallbackData.reverse();
-        }
-      } else if (filter === "realtime_30m") {
-        const m30 = new Date(Date.now() - 30 * 60 * 1000);
-        result = await Telemetry.find({ timestamp: { $gte: m30 } }).sort({
-          timestamp: 1,
-        });
-
-        if (result.length === 0) {
-          const fallbackData = await Telemetry.find()
-            .sort({ timestamp: -1 })
-            .limit(20);
-          result = fallbackData.reverse();
-        }
-      } else {
-        // Fallback
-        const data = await Telemetry.find().sort({ timestamp: -1 }).limit(20);
-        result = data.reverse();
+      if (result.length === 0) {
+        const fallbackData = await Telemetry.find().sort({ timestamp: -1 }).limit(20);
+        result = fallbackData.reverse();
       }
 
       res.json(result);
@@ -90,11 +95,42 @@ router.get(
 );
 
 router.get(
+  "/table",
+  authenticateToken,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const skip = (page - 1) * limit;
+
+      const [docs, total] = await Promise.all([
+        Telemetry.find().sort({ timestamp: -1 }).skip(skip).limit(limit),
+        Telemetry.countDocuments()
+      ]);
+
+      res.json({ docs, total, page, totalPages: Math.ceil(total / limit) });
+    } catch (err: unknown) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  }
+);
+
+router.get(
   "/download",
   authenticateToken,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const docs = await Telemetry.find().sort({ timestamp: -1 }).limit(500);
+      const rangeStr = (req.query.range as string) || "24h";
+
+      let msRange = 24 * 60 * 60 * 1000;
+      if (rangeStr.endsWith("m")) msRange = parseInt(rangeStr) * 60 * 1000;
+      else if (rangeStr.endsWith("h")) msRange = parseInt(rangeStr) * 60 * 60 * 1000;
+      else if (rangeStr.endsWith("d")) msRange = parseInt(rangeStr) * 24 * 60 * 60 * 1000;
+
+      const startTime = new Date(Date.now() - msRange);
+      
+      // Export mentah (tanpa binning) agar data excel lengkap dan akurat
+      const docs = await Telemetry.find({ timestamp: { $gte: startTime } }).sort({ timestamp: 1 });
 
       if (docs.length === 0) {
         res.status(404).send("Data masih kosong, belum bisa download.");
@@ -169,20 +205,20 @@ router.get(
 
       if (!stats && totalSemua === 0) {
         res.json({
-          rataSuhu: "--",
-          maxSuhu: "--",
-          minSuhu: "--",
+          rataSuhu: null,
+          maxSuhu: null,
+          minSuhu: null,
           totalMenit: 0,
           jamTanahKering: "--",
-          nilaiTanahKering: "--",
+          nilaiTanahKering: null,
         });
         return;
       }
 
       res.json({
-        rataSuhu: stats?.rataSuhu ? stats.rataSuhu.toFixed(1) : "--",
-        maxSuhu: stats?.maxSuhu ? stats.maxSuhu.toFixed(1) : "--",
-        minSuhu: stats?.minSuhu ? stats.minSuhu.toFixed(1) : "--",
+        rataSuhu: stats?.rataSuhu != null ? parseFloat(stats.rataSuhu.toFixed(1)) : null,
+        maxSuhu: stats?.maxSuhu != null ? parseFloat(stats.maxSuhu.toFixed(1)) : null,
+        minSuhu: stats?.minSuhu != null ? parseFloat(stats.minSuhu.toFixed(1)) : null,
         totalMenit: totalSemua || 0,
         jamTanahKering: docTerendah
           ? new Date(docTerendah.timestamp).toLocaleTimeString([], {
@@ -190,7 +226,7 @@ router.get(
               minute: "2-digit",
             })
           : "--",
-        nilaiTanahKering: docTerendah ? docTerendah.tanah : "--",
+        nilaiTanahKering: docTerendah?.tanah != null ? parseFloat(Number(docTerendah.tanah).toFixed(1)) : null,
       });
     } catch (err) {
       console.error("Analytics Error:", err);

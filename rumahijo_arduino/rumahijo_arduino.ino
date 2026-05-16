@@ -114,9 +114,9 @@ float humUdara = 0;
 float tanah    = 0;
 float cahaya   = 0;
 
-bool overrideKipas = false;
-bool overridePompa = false;
-bool overrideLampu = false;
+int overrideKipas = 0; // 0=AUTO, 1=ON, 2=OFF
+int overridePompa = 0;
+int overrideLampu = 0;
 
 // bool statusKipas = false;
 // bool statusPompa = false;
@@ -208,42 +208,51 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
   // Override langsung nyalakan/matikan relay, abaikan timer
   if (doc.containsKey("kipas")) {
-    overrideKipas = doc["kipas"].as<bool>();
-    if (overrideKipas) {
+    int cmd = doc["kipas"].is<bool>() ? (doc["kipas"].as<bool>() ? 1 : 0) : doc["kipas"].as<int>();
+    overrideKipas = cmd;
+    if (cmd == 1) {
       digitalWrite(RELAY_KIPAS, HIGH);
       rcKipas.statusOn = true;
       Serial.println("[Override] Kipas: MANUAL ON");
-    } else {
+    } else if (cmd == 2) {
       digitalWrite(RELAY_KIPAS, LOW);
       rcKipas.statusOn  = false;
+      Serial.println("[Override] Kipas: MANUAL OFF");
+    } else {
       rcKipas.state     = STATE_IDLE; // Reset ke auto-mode normal
-      Serial.println("[Override] Kipas: MANUAL OFF → auto-mode resumed");
+      Serial.println("[Override] Kipas: AUTO RESUMED");
     }
   }
   if (doc.containsKey("pompa")) {
-    overridePompa = doc["pompa"].as<bool>();
-    if (overridePompa) {
+    int cmd = doc["pompa"].is<bool>() ? (doc["pompa"].as<bool>() ? 1 : 0) : doc["pompa"].as<int>();
+    overridePompa = cmd;
+    if (cmd == 1) {
       digitalWrite(RELAY_POMPA, HIGH);
       rcPompa.statusOn = true;
       Serial.println("[Override] Pompa: MANUAL ON");
-    } else {
+    } else if (cmd == 2) {
       digitalWrite(RELAY_POMPA, LOW);
       rcPompa.statusOn   = false;
+      Serial.println("[Override] Pompa: MANUAL OFF");
+    } else {
       rcPompa.state      = STATE_IDLE;
-      Serial.println("[Override] Pompa: MANUAL OFF → auto-mode resumed");
+      Serial.println("[Override] Pompa: AUTO RESUMED");
     }
   }
   if (doc.containsKey("lampu")) {
-    overrideLampu = doc["lampu"].as<bool>();
-    if (overrideLampu) {
+    int cmd = doc["lampu"].is<bool>() ? (doc["lampu"].as<bool>() ? 1 : 0) : doc["lampu"].as<int>();
+    overrideLampu = cmd;
+    if (cmd == 1) {
       digitalWrite(RELAY_LAMPU, HIGH);
       rcLampu.statusOn = true;
       Serial.println("[Override] Lampu: MANUAL ON");
-    } else {
+    } else if (cmd == 2) {
       digitalWrite(RELAY_LAMPU, LOW);
       rcLampu.statusOn   = false;
+      Serial.println("[Override] Lampu: MANUAL OFF");
+    } else {
       rcLampu.state      = STATE_IDLE;
-      Serial.println("[Override] Lampu: MANUAL OFF → auto-mode resumed");
+      Serial.println("[Override] Lampu: AUTO RESUMED");
     }
   }
   
@@ -331,13 +340,12 @@ void bacaSensor() {
 //                  bool overrideOn, bool &notifFlag,
 //                  const char* namaRelay, String pesanNotif) {
 void updateRelay(RelayControl &rc, int pin, bool kondisiTerpenuhi,
-                 bool &overrideOn, const char* namaRelay) {
+                 int overrideMode, const char* namaRelay) {
 
   unsigned long now = millis();
 
   // ── Override aktif: bypass semua state machine ──────
-  // (relay sudah di-handle langsung di callback MQTT)
-  if (overrideOn) return;
+  if (overrideMode != 0) return;
 
   switch (rc.state) {
 
@@ -471,9 +479,9 @@ void publishData() {
   doc["status_kipas"]     = rcKipas.statusOn;
   doc["status_pompa"]     = rcPompa.statusOn;
   doc["status_lampu"]     = rcLampu.statusOn;
-  doc["state_kipas"]      = stateLabel[rcKipas.state];
-  doc["state_pompa"]      = stateLabel[rcPompa.state];
-  doc["state_lampu"]      = stateLabel[rcLampu.state];
+  doc["state_kipas"]      = overrideKipas != 0 ? "MANUAL" : stateLabel[rcKipas.state];
+  doc["state_pompa"]      = overridePompa != 0 ? "MANUAL" : stateLabel[rcPompa.state];
+  doc["state_lampu"]      = overrideLampu != 0 ? "MANUAL" : stateLabel[rcLampu.state];
 
   char buffer[400];
   serializeJson(doc, buffer);

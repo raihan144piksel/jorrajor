@@ -16,7 +16,6 @@ const SensorGrid: React.FC<SensorGridProps> = ({ data }) => {
                 unit="°C"
                 icon={Thermometer}
                 color="border-orange-500"
-                state={data.state_kipas}
                 iconColor="text-orange-500"
             />
             <SensorCard
@@ -25,7 +24,6 @@ const SensorGrid: React.FC<SensorGridProps> = ({ data }) => {
                 unit="%"
                 icon={Droplets}
                 color="border-emerald-500"
-                state={data.state_pompa}
                 iconColor="text-emerald-500"
             />
             <SensorCard
@@ -34,7 +32,6 @@ const SensorGrid: React.FC<SensorGridProps> = ({ data }) => {
                 unit="%"
                 icon={Droplets}
                 color="border-blue-500"
-                state={data.state_pompa}
                 iconColor="text-blue-500"
             />
             <SensorCard
@@ -43,7 +40,6 @@ const SensorGrid: React.FC<SensorGridProps> = ({ data }) => {
                 unit="%"
                 icon={Sun}
                 color="border-yellow-500"
-                state={data.state_lampu}
                 iconColor="text-yellow-500"
             />
         </div>

@@ -8,6 +8,7 @@ const ThresholdSettings: React.FC = () => {
         temp_threshold: 30,
         hum_threshold: 40,
         light_threshold: 20,
+        retention_days: 30,
     });
     const [isSaving, setIsSaving] = useState(false);
 
@@ -104,7 +105,30 @@ const ThresholdSettings: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="md:col-span-3 flex justify-end">
+                <div className="md:col-span-3 space-y-2">
+                    <label className="text-sm text-slate-400">
+                        💾 Penyimpanan Data Server (Hari)
+                    </label>
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            value={thresholds.retention_days}
+                            onChange={(e) =>
+                                setThresholds({
+                                    ...thresholds,
+                                    retention_days: Number(e.target.value),
+                                })
+                            }
+                            className="w-1/4 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2 text-white outline-none focus:border-blue-500"
+                            min="1"
+                            max="365"
+                        />
+                        <span className="text-slate-400">Hari</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">Data log akan otomatis dihapus permanen jika lebih lama dari batas ini.</p>
+                </div>
+
+                <div className="md:col-span-3 flex justify-end mt-4">
                     <button
                         type="submit"
                         disabled={isSaving}
