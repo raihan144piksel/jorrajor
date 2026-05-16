@@ -12,6 +12,7 @@ import TelemetryTable from "../components/TelemetryTable";
 import Sidebar from "../components/Sidebar";
 import WeatherForecast from "../components/WeatherForecast";
 import ThresholdSettings from "../components/ThresholdSettings";
+import FotaPanel from "../components/FotaPanel";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -182,8 +183,9 @@ const Dashboard: React.FC = () => {
         );
       case "settings":
         return (
-          <div className="animate-in fade-in duration-500">
+          <div className="space-y-8 animate-in fade-in duration-500">
             <ThresholdSettings />
+            <FotaPanel />
           </div>
         );
       default:

@@ -32,6 +32,7 @@
 #include <DHT.h>
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
+#include <HTTPUpdate.h>
 #include <Preferences.h>
 #include "config.h"
 
@@ -268,6 +269,41 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.printf("[Settings] Update -> Suhu:%.1f Soil:%.1f Cahaya:%.1f\n", suhuThreshold, soilThreshold, cahayaThreshold);
   }
 
+  // Terima URL OTA
+  if (doc.containsKey("url")) {
+    String otaUrl = doc["url"].as<String>();
+    Serial.println("\n[OTA] Menerima perintah update dari: " + otaUrl);
+    
+    // Tampilkan status di dashboard MQTT (jika ada yg subscribe state_ota, kita gunakan publish biasa)
+    StaticJsonDocument<256> replyDoc;
+    replyDoc["state_ota"] = "MENDOWNLOAD";
+    char buffer[256];
+    serializeJson(replyDoc, buffer);
+    client.publish(TOPIC_TELEMETRY, buffer);
+
+    // Lakukan HTTP Update
+    WiFiClient clientOTA;
+    t_httpUpdate_return ret = httpUpdate.update(clientOTA, otaUrl);
+
+    switch (ret) {
+      case HTTP_UPDATE_FAILED:
+        Serial.printf("[OTA] Gagal: %s\n", httpUpdate.getLastErrorString().c_str());
+        replyDoc["state_ota"] = "GAGAL";
+        break;
+      case HTTP_UPDATE_NO_UPDATES:
+        Serial.println("[OTA] Tidak ada update baru.");
+        replyDoc["state_ota"] = "TIDAK_ADA_UPDATE";
+        break;
+      case HTTP_UPDATE_OK:
+        Serial.println("[OTA] Update berhasil, me-restart...");
+        replyDoc["state_ota"] = "BERHASIL";
+        break;
+    }
+    serializeJson(replyDoc, buffer);
+    client.publish(TOPIC_TELEMETRY, buffer);
+    return;
+  }
+
   publishData(); // Segera publish data terbaru setelah menerima perintah
 }
 
@@ -288,7 +324,8 @@ void jagaMQTT() {
         Serial.println("[MQTT] Terhubung!");
         mqttClient.subscribe(TOPIC_CONTROL);
         mqttClient.subscribe(TOPIC_SETTINGS);
-        Serial.printf("[MQTT] Subscribe: %s & %s\n", TOPIC_CONTROL, TOPIC_SETTINGS);
+        mqttClient.subscribe(TOPIC_OTA);
+        Serial.printf("[MQTT] Subscribe: %s, %s, & %s\n", TOPIC_CONTROL, TOPIC_SETTINGS, TOPIC_OTA);
       } else {
         Serial.printf("[MQTT] Gagal rc=%d\n", mqttClient.state());
       }

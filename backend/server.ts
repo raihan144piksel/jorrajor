@@ -11,6 +11,7 @@ import authRoutes from "./routes/authRoutes.js";
 import telemetryRoutes from "./routes/telemetryRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import controlRoutes from "./routes/controlRoutes.js";
+import otaRoutes from "./routes/otaRoutes.js";
 
 connectDB();
 
@@ -43,6 +44,7 @@ app.use("/api", authRoutes);
 app.use("/api/telemetry", telemetryRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/control", controlRoutes);
+app.use("/api/ota", otaRoutes);
 
 const gracefulShutdown = () => {
   console.log("Shutting down gracefully...");
