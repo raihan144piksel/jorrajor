@@ -18,7 +18,7 @@ interface HistoryChartProps {
 const HistoryChart: React.FC<HistoryChartProps> = ({ data }) => {
     if (!data || data.length === 0) {
         return (
-            <div className="w-full h-64 sm:h-[350px] flex items-center justify-center">
+            <div className="w-full h-64 sm:h-87.5 flex items-center justify-center">
                 <p className="text-slate-400">Menunggu data sensor...</p>
             </div>
         );

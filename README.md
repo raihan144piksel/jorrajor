@@ -41,7 +41,7 @@ Buat file `.env` di folder `backend/` dengan isi sebagai berikut:
 PORT=3000
 MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/smartfarm
 JWT_SECRET=rahasia_super_kuat_anda
-FRONTEND_URL="https://rumahijo.vercel.app/"
+FRONTEND_URL="http://localhost:5173"
 NODE_ENV="production"
 MQTT_URL=mqtts://broker_address:port
 MQTT_USER=username_mqtt
@@ -72,7 +72,7 @@ Buat file `.env` di folder `frontend/`:
 
 ```env
 VITE_API_BASE_URL=http://localhost:3000/api
-VITE_API_URL=http://localhost:3000/
+VITE_API_URL=http://localhost:3000
 ```
 
 Jalankan dashboard:
@@ -83,7 +83,7 @@ npm run dev
 
 ### 3. Firmware ESP32
 
-1. Buka file di folder `/rumahijo_arduino/rumahijo_arduino.ino` menggunakan Arduino IDE.
+1. Buka file di folder `/rumahijo_arduino/rumahijo_arduino.ino` menggunakan Arduino IDE atau Arduino CLI.
 2. Edit file `config.h` dan lengkapi konfigurasi berikut:
 
    ```cpp
@@ -91,19 +91,20 @@ npm run dev
    #define CONFIG_H
 
    // DEVICE ID
-   const char* DEVICE_ID    = "device0";
+   const char* DEVICE_ID      = "device0";
 
    // MQTT Broker
    const char* MQTT_SERVER    = "alamat_broker_anda";
-   const int   MQTT_PORT      = 8883; // Port SSL
-   const char* MQTT_CLIENT_ID = "nama_bebas";
+   const int   MQTT_PORT      = 8883; // Port SSL/TLS
+   const char* MQTT_CLIENT_ID = "semainode01";
    const char* MQTT_USER      = "user_mqtt";
    const char* MQTT_PASSWORD  = "pass_mqtt";
 
    // MQTT Topics
-   const char* TOPIC_TELEMETRY = "smartfarm/telemetry";  // publish data sensor
-   const char* TOPIC_CONTROL   = "smartfarm/control";    // subscribe perintah dashboard
-   const char* TOPIC_SETTINGS  = "smartfarm/settings";   // subscribe pengaturan threshold
+   const char* TOPIC_TELEMETRY = "smartfarm/telemetry";
+   const char* TOPIC_CONTROL   = "smartfarm/control";
+   const char* TOPIC_SETTINGS  = "smartfarm/settings";
+   const char* TOPIC_OTA       = "smartfarm/ota";
 
    // Telegram (Opsional - Jika ingin notif dari alat)
    const char* TG_TOKEN       = "token_bot";
@@ -119,24 +120,17 @@ npm run dev
 
 ## 🔌 API Reference
 
-Semua endpoint kecuali login dilindungi oleh middleware autentikasi. Anda harus menyertakan token dalam header: `Authorization: Bearer <your_token>`.
+Semua endpoint kecuali `/login` dilindungi oleh middleware autentikasi. Gunakan header: `Authorization: Bearer <your_token>`.
 
-### Auth
+### Telemetry & Analytics
+- `GET /api/telemetry?range=30m&bin=none`: Mendapatkan data sensor murni atau teragregasi.
+- `GET /api/telemetry/analytics`: Mendapatkan ringkasan statistik harian (Suhu Max/Min, Jam Tanah Kering).
+- `GET /api/telemetry/download`: Mengunduh log sensor mentah dalam format CSV.
 
-- `POST /api/auth/login`: Autentikasi user dan mendapatkan JWT.
-
-### Telemetry
-
-- `GET /api/telemetry?filter=realtime_30m`: Mendapatkan data sensor dalam rentang 30 menit terakhir.
-- `GET /api/telemetry?filter=hourly_5m`: Mendapatkan data agregasi per 5 menit untuk rentang 24 jam.
-- `GET /api/telemetry/analytics`: Mendapatkan ringkasan statistik (rata-rata, max, min suhu).
-- `GET /api/telemetry/download`: Mengunduh log sensor dalam format CSV.
-
-### Control & Settings
-
-- `POST /api/control`: Mengirim perintah manual ke ESP32 (on/off relay).
-- `GET /api/settings`: Mengambil konfigurasi ambang batas (threshold) saat ini.
-- `POST /api/settings`: Memperbarui threshold dan mengirimkan sinyal pembaruan ke ESP32 via MQTT.
+### Control, Settings & OTA
+- `POST /api/control`: Mengirim perintah manual (ON/OFF/AUTO) ke relay ESP32.
+- `GET /api/settings` & `POST /api/settings`: Mengatur ambang batas sensor.
+- `POST /api/ota/upload`: Mengunggah file `.bin` untuk update firmware jarak jauh. Mengirimkan sinyal otomatis via MQTT agar ESP32 memulai unduhan FOTA.
 
 ---
 
@@ -162,18 +156,16 @@ Proyek ini menerapkan standar keamanan industri untuk melindungi data dan akses 
 ## ☁️ Cara Deploy (Production)
 
 ### Backend
-
-1. Build TypeScript ke JavaScript: `npm run build` (jika script tersedia) atau gunakan `tsx` untuk eksekusi langsung.
-2. Gunakan **PM2** agar server tetap menyala:
+1. Pastikan port TCP dibuka.
+2. Gunakan **PM2** dengan interpreter `tsx` agar server menyala terus-menerus:
    ```bash
-   pm2 start server.ts --interpreter tsx
+   pm2 start server.ts --interpreter tsx --name semai-backend
    ```
 
 ### Frontend
-
 1. Build aplikasi: `npm run build`.
-2. Upload folder `dist/` ke provider hosting statis seperti **Vercel**, **Netlify**, atau **Cloudflare Pages**.
-3. Pastikan konfigurasi `rewrites` di `vercel.json` sudah aktif agar Single Page Application (SPA) berjalan lancar.
+2. Upload folder `dist/` ke **Vercel**, **Netlify**, atau Cloud hosting.
+3. Jangan lupa atur _redirect rules_ agar SPA React Router tidak mengembalikan error 404 saat halamannya di-_refresh_.
 
 ---
 
