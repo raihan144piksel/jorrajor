@@ -119,6 +119,10 @@ int overrideKipas = 0; // 0=AUTO, 1=ON, 2=OFF
 int overridePompa = 0;
 int overrideLampu = 0;
 
+// Flag untuk OTA
+bool otaTriggered = false;
+String otaTargetUrl = "";
+
 // bool statusKipas = false;
 // bool statusPompa = false;
 // bool statusLampu = false;
@@ -196,12 +200,12 @@ void publishData();
 //  Payload JSON: {"kipas":true} / {"pompa":false} / dll
 // ═══════════════════════════════════════════════════════
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  String pesan = "";
-  for (unsigned int i = 0; i < length; i++) pesan += (char)payload[i];
-  Serial.printf("[MQTT] Terima | %s | %s\n", topic, pesan.c_str());
+  Serial.printf("[MQTT] Terima | %s\n", topic);
 
   StaticJsonDocument<200> doc;
-  DeserializationError err = deserializeJson(doc, pesan);
+  // Parse langsung dari byte array payload tanpa membuat String baru (Lebih hemat memori / O(1))
+  DeserializationError err = deserializeJson(doc, payload, length);
+  
   if (err) {
     Serial.printf("[MQTT] JSON error: %s\n", err.c_str());
     return;
@@ -220,8 +224,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       rcKipas.statusOn  = false;
       Serial.println("[Override] Kipas: MANUAL OFF");
     } else {
+      digitalWrite(RELAY_KIPAS, LOW);
+      rcKipas.statusOn  = false;
       rcKipas.state     = STATE_IDLE; // Reset ke auto-mode normal
-      Serial.println("[Override] Kipas: AUTO RESUMED");
+      Serial.println("[Override] Kipas: AUTO RESUMED (Reset to OFF)");
     }
   }
   if (doc.containsKey("pompa")) {
@@ -236,8 +242,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       rcPompa.statusOn   = false;
       Serial.println("[Override] Pompa: MANUAL OFF");
     } else {
+      digitalWrite(RELAY_POMPA, LOW);
+      rcPompa.statusOn   = false;
       rcPompa.state      = STATE_IDLE;
-      Serial.println("[Override] Pompa: AUTO RESUMED");
+      Serial.println("[Override] Pompa: AUTO RESUMED (Reset to OFF)");
     }
   }
   if (doc.containsKey("lampu")) {
@@ -252,8 +260,10 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       rcLampu.statusOn   = false;
       Serial.println("[Override] Lampu: MANUAL OFF");
     } else {
+      digitalWrite(RELAY_LAMPU, LOW);
+      rcLampu.statusOn   = false;
       rcLampu.state      = STATE_IDLE;
-      Serial.println("[Override] Lampu: AUTO RESUMED");
+      Serial.println("[Override] Lampu: AUTO RESUMED (Reset to OFF)");
     }
   }
   
@@ -271,36 +281,15 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
   // Terima URL OTA
   if (doc.containsKey("url")) {
-    String otaUrl = doc["url"].as<String>();
-    Serial.println("\n[OTA] Menerima perintah update dari: " + otaUrl);
+    otaTargetUrl = doc["url"].as<String>();
+    otaTriggered = true;
+    Serial.println("\n[OTA] Menerima perintah update dari: " + otaTargetUrl + ". Menjadwalkan update...");
     
-    // Tampilkan status di dashboard MQTT (jika ada yg subscribe state_ota, kita gunakan publish biasa)
     StaticJsonDocument<256> replyDoc;
-    replyDoc["state_ota"] = "MENDOWNLOAD";
+    replyDoc["state_ota"] = "MENUNGGU";
     char buffer[256];
     serializeJson(replyDoc, buffer);
-    client.publish(TOPIC_TELEMETRY, buffer);
-
-    // Lakukan HTTP Update
-    WiFiClient clientOTA;
-    t_httpUpdate_return ret = httpUpdate.update(clientOTA, otaUrl);
-
-    switch (ret) {
-      case HTTP_UPDATE_FAILED:
-        Serial.printf("[OTA] Gagal: %s\n", httpUpdate.getLastErrorString().c_str());
-        replyDoc["state_ota"] = "GAGAL";
-        break;
-      case HTTP_UPDATE_NO_UPDATES:
-        Serial.println("[OTA] Tidak ada update baru.");
-        replyDoc["state_ota"] = "TIDAK_ADA_UPDATE";
-        break;
-      case HTTP_UPDATE_OK:
-        Serial.println("[OTA] Update berhasil, me-restart...");
-        replyDoc["state_ota"] = "BERHASIL";
-        break;
-    }
-    serializeJson(replyDoc, buffer);
-    client.publish(TOPIC_TELEMETRY, buffer);
+    mqttClient.publish(TOPIC_TELEMETRY, buffer);
     return;
   }
 
@@ -575,6 +564,38 @@ void loop() {
   
   if (mqttClient.connected()) {
     mqttClient.loop();  // proses pesan masuk (callback)
+  }
+
+  // Eksekusi OTA jika dijadwalkan (di luar callback MQTT)
+  if (otaTriggered) {
+    otaTriggered = false;
+    Serial.println("[OTA] Memulai HTTP Update...");
+    
+    StaticJsonDocument<256> replyDoc;
+    replyDoc["state_ota"] = "MENDOWNLOAD";
+    char buffer[256];
+    serializeJson(replyDoc, buffer);
+    mqttClient.publish(TOPIC_TELEMETRY, buffer);
+
+    WiFiClient clientOTA;
+    t_httpUpdate_return ret = httpUpdate.update(clientOTA, otaTargetUrl);
+
+    switch (ret) {
+      case HTTP_UPDATE_FAILED:
+        Serial.printf("[OTA] Gagal: %s\n", httpUpdate.getLastErrorString().c_str());
+        replyDoc["state_ota"] = "GAGAL";
+        break;
+      case HTTP_UPDATE_NO_UPDATES:
+        Serial.println("[OTA] Tidak ada update baru.");
+        replyDoc["state_ota"] = "TIDAK_ADA_UPDATE";
+        break;
+      case HTTP_UPDATE_OK:
+        Serial.println("[OTA] Update berhasil, me-restart...");
+        replyDoc["state_ota"] = "BERHASIL";
+        break;
+    }
+    serializeJson(replyDoc, buffer);
+    mqttClient.publish(TOPIC_TELEMETRY, buffer);
   }
 
   // Baca sensor + kontrol relay + publish setiap INTERVAL_BACA ms

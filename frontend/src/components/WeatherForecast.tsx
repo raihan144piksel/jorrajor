@@ -132,13 +132,12 @@ const WeatherForecast: React.FC = () => {
         const url = "https://api.open-meteo.com/v1/forecast";
         const responses = await fetchWeatherApi(url, params);
         const response = responses[0]!;
-        const utcOffsetSeconds = response.utcOffsetSeconds();
         const hourly = response.hourly()!;
 
         const dataPoints: WeatherHourlyPoint[] = Array.from(
           { length: (Number(hourly.timeEnd()) - Number(hourly.time())) / hourly.interval() },
           (_, i) => ({
-            time: new Date((Number(hourly.time()) + i * hourly.interval() + utcOffsetSeconds) * 1000),
+            time: new Date((Number(hourly.time()) + i * hourly.interval()) * 1000),
             temp: hourly.variables(0)!.valuesArray()![i] || 0,
             humidity: hourly.variables(1)!.valuesArray()![i] || 0,
             apparent: hourly.variables(2)!.valuesArray()![i] || 0,

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Upload, Cpu } from "lucide-react";
+import toast from "react-hot-toast";
 import { uploadFirmware } from "../services/api";
 
 const FotaPanel: React.FC = () => {
@@ -15,17 +16,17 @@ const FotaPanel: React.FC = () => {
     const handleUpload = async () => {
         if (!file) return;
         if (!file.name.endsWith(".bin")) {
-            alert("File harus berformat .bin");
+            toast.error("File harus berformat .bin");
             return;
         }
 
         setIsUploading(true);
         try {
             await uploadFirmware(file);
-            alert("✅ Firmware berhasil diunggah! ESP32 akan merestart otomatis setelah update selesai.");
+            toast.success("Firmware berhasil diunggah! ESP32 akan merestart otomatis setelah update selesai.", { duration: 5000 });
             setFile(null);
         } catch (err) {
-            alert("❌ Gagal mengunggah firmware. Pastikan backend server menyala.");
+            toast.error("Gagal mengunggah firmware. Pastikan backend server menyala.");
             console.error(err);
         } finally {
             setIsUploading(false);

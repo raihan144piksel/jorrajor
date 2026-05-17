@@ -59,7 +59,7 @@ router.post("/upload", authenticateToken, upload.single("firmware"), (req, res) 
 router.get("/firmware.bin", (req, res) => {
   const file = path.join(uploadDir, "firmware.bin");
   if (fs.existsSync(file)) {
-    res.download(file);
+    res.sendFile(file);
   } else {
     res.status(404).send("Firmware tidak ditemukan.");
   }

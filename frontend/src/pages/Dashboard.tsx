@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
-import { getTelemetry, getAnalytics, sendControl } from "../services/api";
-import { TelemetryData, AnalyticsData } from "../types";
+import { getTelemetry, getAnalytics, sendControl, getSettings } from "../services/api";
+import { TelemetryData, AnalyticsData, ThresholdSettings as ThresholdSettingsType } from "../types";
 import DashboardHeader from "../components/DashboardHeader";
 import SensorGrid from "../components/SensorGrid";
 import ActuatorGrid from "../components/ActuatorGrid";
@@ -13,6 +13,7 @@ import Sidebar from "../components/Sidebar";
 import WeatherForecast from "../components/WeatherForecast";
 import ThresholdSettings from "../components/ThresholdSettings";
 import FotaPanel from "../components/FotaPanel";
+import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -40,6 +41,7 @@ const Dashboard: React.FC = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [isEspOnline, setIsEspOnline] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  const [thresholds, setThresholds] = useState<ThresholdSettingsType | null>(null);
 
   const navigate = useNavigate();
   const socketRef = useRef<Socket | null>(null);
@@ -47,6 +49,7 @@ const Dashboard: React.FC = () => {
   const handleLogout = () => {
     localStorage.removeItem("app_token");
     socketRef.current?.disconnect();
+    toast.success("Berhasil logout");
     navigate("/login");
   };
 
@@ -56,11 +59,27 @@ const Dashboard: React.FC = () => {
       .catch((err) => console.error("Stats Error:", err));
   };
 
-  // 1. Initial Load for Live History
+  // 1. Initial Load for Live History & Thresholds
   useEffect(() => {
     getTelemetry("30m", "none").then(res => setLiveHistory(res || []));
     refreshStats();
+    getSettings().then(res => setThresholds(res)).catch(err => console.error("Stats Error:", err));
   }, []);
+
+  // 1.5. Threshold Alert Toasts
+  useEffect(() => {
+    if (liveHistory.length < 2 || !thresholds) return;
+    
+    const latest = liveHistory[liveHistory.length - 1];
+    const prev = liveHistory[liveHistory.length - 2];
+
+    if (latest.suhu > thresholds.temp_threshold && prev.suhu <= thresholds.temp_threshold) {
+        toast("Suhu Terlalu Panas! Kipas otomatis menyala.", { icon: "🔥", style: { background: '#7f1d1d', color: '#fff' }, duration: 4000 });
+    }
+    if (latest.tanah < thresholds.hum_threshold && prev.tanah >= thresholds.hum_threshold) {
+        toast("Tanah Kering! Pompa otomatis menyala.", { icon: "💧", style: { background: '#1e3a8a', color: '#fff' }, duration: 4000 });
+    }
+  }, [liveHistory, thresholds]);
 
   // 2. Load Analytics Data when tab or range changes
   useEffect(() => {
@@ -132,8 +151,8 @@ const Dashboard: React.FC = () => {
             <SensorGrid data={data} />
             <ActuatorGrid data={data} onControl={handleControl} />
             
-            <div className="bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-700/50">
-              <h2 className="text-xl font-bold text-white mb-6">Grafik Real-time</h2>
+            <div className="bg-slate-800 p-4 sm:p-6 rounded-3xl shadow-xl border border-slate-700/50">
+              <h2 className="text-lg sm:text-xl font-bold text-white mb-4 sm:mb-6">Grafik Real-time</h2>
               <HistoryChart data={liveHistory} />
             </div>
           </div>
@@ -143,10 +162,10 @@ const Dashboard: React.FC = () => {
           <div className="space-y-8 animate-in fade-in duration-500">
             <AnalyticsGrid analytics={analytics} />
             
-            <div className="bg-slate-800 p-6 rounded-3xl shadow-xl border border-slate-700/50">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+            <div className="bg-slate-800 p-4 sm:p-6 rounded-3xl shadow-xl border border-slate-700/50">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
                 <div>
-                  <h2 className="text-xl font-bold text-white">Tren Strategis ({analyticsRange})</h2>
+                  <h2 className="text-lg sm:text-xl font-bold text-white">Tren Strategis ({analyticsRange})</h2>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="w-2 h-2 rounded-full bg-blue-500" />
                     <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">Data Agregat Aktif</span>
@@ -201,8 +220,8 @@ const Dashboard: React.FC = () => {
         onLogout={handleLogout} 
       />
 
-      <main className="flex-1 p-4 md:p-10 pb-24 md:pb-10 overflow-y-auto overflow-x-hidden">
-        <div className="max-w-7xl mx-auto space-y-8">
+      <main className="flex-1 p-4 lg:p-10 pb-24 lg:pb-10 overflow-y-auto overflow-x-hidden">
+        <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
           <DashboardHeader
             isOnline={isOnline}
             isEspOnline={isEspOnline}

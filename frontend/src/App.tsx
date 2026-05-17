@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
 
 // Lazy load komponen halaman untuk optimasi bundle (Code Splitting)
 const LoginPage = lazy(() => import("./pages/LoginPage"));
@@ -18,7 +19,9 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 
 function App() {
     return (
-        <BrowserRouter>
+        <>
+            <Toaster position="top-center" reverseOrder={false} />
+            <BrowserRouter>
             <Suspense
                 fallback={
                     <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -51,6 +54,7 @@ function App() {
                 </Routes>
             </Suspense>
         </BrowserRouter>
+        </>
     );
 }
 

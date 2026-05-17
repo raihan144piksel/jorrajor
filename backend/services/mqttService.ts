@@ -12,8 +12,6 @@ let lastReportedStates = {
   pompa: false,
   lampu: false,
 };
-let lastNotifTime = 0;
-const NOTIF_COOLDOWN = 10 * 60 * 1000;
 
 // Variables for Deadband Filter (Report by Exception)
 let lastSavedData = {
@@ -173,27 +171,22 @@ export const initMqtt = (io: Server): void => {
 
         // 3. Kirim ke Telegram jika ada pesan
         if (pesanNotif.length > 0) {
-          const now = Date.now();
-          if (now - lastNotifTime > NOTIF_COOLDOWN) {
-            lastNotifTime = now;
-            const pesanFinal = `📢 *LAPORAN SISTEM SEMAI*\n\n${pesanNotif.join("\n\n")}`;
+          // Update tracker state immediately to prevent desync
+          lastReportedStates = {
+            kipas: status_kipas,
+            pompa: status_pompa,
+            lampu: status_lampu,
+          };
 
-            axios
-              .post(`https://api.telegram.org/bot${ENV.TG_TOKEN}/sendMessage`, {
-                chat_id: ENV.TG_CHAT_ID,
-                text: pesanFinal,
-                parse_mode: "Markdown",
-              })
-              .then(() => {
-                // UPDATE hanya jika berhasil kirim atau masa cooldown lewat
-                lastReportedStates = {
-                  kipas: status_kipas,
-                  pompa: status_pompa,
-                  lampu: status_lampu,
-                };
-              })
-              .catch((err) => console.error("Telegram Error:", err.message));
-          }
+          const pesanFinal = `📢 *LAPORAN SISTEM SEMAI*\n\n${pesanNotif.join("\n\n")}`;
+
+          axios
+            .post(`https://api.telegram.org/bot${ENV.TG_TOKEN}/sendMessage`, {
+              chat_id: ENV.TG_CHAT_ID,
+              text: pesanFinal,
+              parse_mode: "Markdown",
+            })
+            .catch((err) => console.error("Telegram Error:", err.message));
         }
       } catch (err) {
         console.error("Gagal memproses data MQTT:", err);

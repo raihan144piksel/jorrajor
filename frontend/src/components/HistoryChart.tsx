@@ -18,17 +18,16 @@ interface HistoryChartProps {
 const HistoryChart: React.FC<HistoryChartProps> = ({ data }) => {
     if (!data || data.length === 0) {
         return (
-            <div className="bg-slate-800 p-6 rounded-2xl shadow-xl h-100 flex items-center justify-center">
+            <div className="w-full h-64 sm:h-[350px] flex items-center justify-center">
                 <p className="text-slate-400">Menunggu data sensor...</p>
             </div>
         );
     }
 
     return (
-        // 2. Gunakan min-width agar ResponsiveContainer punya acuan
-        <div className="bg-slate-800 p-6 rounded-2xl shadow-xl h-100 w-full min-w-0">
-            <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={data}>
+        <div className="w-full min-w-0">
+            <ResponsiveContainer width="100%" height={350}>
+                <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
                         <linearGradient
                             id="colorSuhu"

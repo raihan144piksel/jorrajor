@@ -18,15 +18,15 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ isOnline, isEspOnline
     };
 
     return (
-        <header className="flex justify-between items-center bg-slate-800 p-6 rounded-2xl shadow-xl">
+        <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-slate-800 p-4 sm:p-6 rounded-2xl shadow-xl">
             <div>
-                <h1 className="text-2xl font-bold text-white">SEMAI Smart Farm</h1>
-                <p className="text-slate-400 text-sm">
+                <h1 className="text-xl sm:text-2xl font-bold text-white">SEMAI Smart Farm</h1>
+                <p className="text-slate-400 text-xs sm:text-sm">
                     Greenhouse Zone A - Live Monitoring
                 </p>
             </div>
             
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full xl:w-auto">
                 <StatusBadge
                     label="Server Status"
                     status={isOnline}
@@ -43,17 +43,17 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ isOnline, isEspOnline
                 />
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4 w-full xl:w-auto justify-start xl:justify-end">
                 <button
                     onClick={getDownloadUrl}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all active:scale-95"
+                    className="flex-1 sm:flex-none flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all active:scale-95 text-sm sm:text-base"
                 >
                     <Download size={18} />
                     <span>Export ({activeRange})</span>
                 </button>
                 <button
                     onClick={onLogout}
-                    className="flex items-center gap-2 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white px-4 py-2 rounded-lg border border-red-600/50 transition-all"
+                    className="flex-1 sm:flex-none flex justify-center items-center gap-2 bg-red-600/20 hover:bg-red-600 text-red-500 hover:text-white px-4 py-2 rounded-lg border border-red-600/50 transition-all text-sm sm:text-base"
                 >
                     <LogOut size={18} />
                     <span>Keluar</span>

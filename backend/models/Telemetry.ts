@@ -32,5 +32,7 @@ const telemetrySchema: Schema = new mongoose.Schema({
 
 // CREATE INDEX ON TIMESTAMP FOR O(log N) QUERIES AND SORTING!
 telemetrySchema.index({ timestamp: -1 });
+// CREATE INDEX ON TANAH FOR O(log N) MIN/MAX ANALYTICS QUERIES!
+telemetrySchema.index({ tanah: 1 });
 
 export default mongoose.model<ITelemetry>("Telemetry", telemetrySchema);

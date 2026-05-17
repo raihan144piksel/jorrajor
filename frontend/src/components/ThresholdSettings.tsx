@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Settings as SettingsIcon } from "lucide-react";
+import toast from "react-hot-toast";
 import { getSettings, updateSettings } from "../services/api";
 import { ThresholdSettings as ThresholdSettingsType } from "../types";
 
@@ -23,9 +24,9 @@ const ThresholdSettings: React.FC = () => {
         setIsSaving(true);
         try {
             await updateSettings(thresholds);
-            alert("✅ Pengaturan berhasil disimpan!");
+            toast.success("Pengaturan berhasil disimpan!");
         } catch (err) {
-            alert("❌ Gagal menyimpan pengaturan");
+            toast.error("Gagal menyimpan pengaturan");
             console.error("Thresholds error:", err);
         } finally {
             setIsSaving(false);
