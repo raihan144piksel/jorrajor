@@ -61,6 +61,12 @@ export const initMqtt = (io: Server): void => {
         }
         const data = JSON.parse(message.toString());
 
+        // Jika ini adalah pesan status OTA, update ke frontend dan abaikan penyimpanan DB
+        if (data.state_ota) {
+          io.emit("ota_status", data.state_ota);
+          return;
+        }
+
         // INJEKSI SERVER TIME agar data selalu punya timestamp valid
         data.timestamp = new Date().toISOString();
         

@@ -60,15 +60,15 @@ export const uploadFirmware = async (file: File): Promise<{ message: string }> =
     const formData = new FormData();
     formData.append("firmware", file);
     
-    // Kirim serverUrl (tanpa /api) agar backend tahu dari mana ESP32 harus mendownloadnya
-    const serverUrl = window.location.origin;
-    formData.append("serverUrl", serverUrl);
+    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+    
+    // Kirim URL Backend agar ESP32 tahu dari mana harus mendownloadnya
+    formData.append("serverUrl", baseUrl);
 
     const token = localStorage.getItem("app_token");
 
     // apiClient tidak bisa dipakai langsung dengan FormData di Axios tanpa setup header khusus, 
     // jadi kita pakai fetch bawaan browser agar boundary multipart ter-generate otomatis.
-    const baseUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
     const response = await fetch(`${baseUrl}/api/ota/upload`, {
         method: "POST",
         headers: {
