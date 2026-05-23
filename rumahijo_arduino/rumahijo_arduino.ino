@@ -128,42 +128,7 @@ char otaTargetUrl[256] = ""; // char[] statis lebih aman dari String (hindari he
 bool pendingPublish = false;
 bool pendingPreferencesSave = false;
 
-// bool statusKipas = false;
-// bool statusPompa = false;
-// bool statusLampu = false;
-
-// Anti-spam Telegram — hanya kirim notif saat state berubah ON
-// bool notifKipas = false;
-// bool notifPompa = false;
-// bool notifLampu = false;
-
 unsigned long lastBaca = 0;
-
-
-// ═══════════════════════════════════════════════════════
-//  TELEGRAM — Kirim notifikasi via HTTPClient
-// ═══════════════════════════════════════════════════════
-// void kirimTelegram(String pesan) {
-//   if (WiFi.status() != WL_CONNECTED) return;
-
-//   HTTPClient http;
-//   String url = "https://api.telegram.org/bot";
-//   url += TG_TOKEN;
-//   url += "/sendMessage?chat_id=";
-//   url += TG_CHAT_ID;
-//   url += "&text=";
-
-//   // Encode spasi dan karakter khusus
-//   pesan.replace(" ", "%20");
-//   pesan.replace("\n", "%0A");
-//   url += pesan;
-
-//   http.begin(url);
-//   int code = http.GET();
-//   Serial.printf("[Telegram] HTTP %d\n", code);
-//   http.end();
-// }
-
 
 // ═══════════════════════════════════════════════════════
 //  WIFI — Koneksi & reconnect (WiFiManager)
@@ -381,9 +346,6 @@ void bacaSensor() {
 //
 //  COOLDOWN ──(120 detik selesai)──► IDLE
 // ═══════════════════════════════════════════════════════
-// void updateRelay(RelayControl &rc, int pin, bool kondisiTerpenuhi,
-//                  bool overrideOn, bool &notifFlag,
-//                  const char* namaRelay, String pesanNotif) {
 void updateRelay(RelayControl &rc, int pin, bool kondisiTerpenuhi,
                  int overrideMode, const char* namaRelay) {
 
@@ -418,10 +380,6 @@ void updateRelay(RelayControl &rc, int pin, bool kondisiTerpenuhi,
         rc.timerNormal = 0; // Pastikan off-debounce selalu mulai bersih
         Serial.printf("[%s] %lu detik terpenuhi → RELAY ON\n", namaRelay, DURASI_TRIGGER/1000);
 
-        // if (!notifFlag) {
-        //   kirimTelegram(pesanNotif);
-        //   notifFlag = true;
-        // }
       }
       break;
 
@@ -467,34 +425,6 @@ void updateRelay(RelayControl &rc, int pin, bool kondisiTerpenuhi,
 // ═══════════════════════════════════════════════════════
 //  KONTROL SEMUA RELAY
 // ═══════════════════════════════════════════════════════
-// void kontrolRelay() {
-//   // Kipas — kondisi: suhu > 30°C
-//   updateRelay(
-//     rcKipas, RELAY_KIPAS,
-//     (suhu > SUHU_THRESHOLD),
-//     overrideKipas, notifKipas,
-//     "KIPAS",
-//     "Kipas ON\nAlasan: Suhu " + String(suhu, 1) + "C > " + String(SUHU_THRESHOLD, 0) + "C selama 10 detik"
-//   );
-
-//   // Pompa — kondisi: tanah < 40%
-//   updateRelay(
-//     rcPompa, RELAY_POMPA,
-//     (tanah < SOIL_THRESHOLD),
-//     overridePompa, notifPompa,
-//     "POMPA",
-//     "Pompa Air ON\nAlasan: Tanah " + String(tanah, 1) + "% < " + String(SOIL_THRESHOLD, 0) + "% selama 10 detik"
-//   );
-
-//   // Lampu — kondisi: cahaya < 50%
-//   updateRelay(
-//     rcLampu, RELAY_LAMPU,
-//     (cahaya < CAHAYA_THRESHOLD),
-//     overrideLampu, notifLampu,
-//     "LAMPU",
-//     "Lampu LED ON\nAlasan: Cahaya " + String(cahaya, 1) + "% < " + String(CAHAYA_THRESHOLD, 0) + "% selama 10 detik"
-//   );
-// }
 void kontrolRelay() {
   // Kipas — kondisi: suhu > suhuThreshold
   updateRelay(
