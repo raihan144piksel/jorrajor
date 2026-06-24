@@ -6,14 +6,13 @@ interface DashboardHeaderProps {
     isOnline: boolean;
     isEspOnline: boolean;
     onLogout: () => void;
-    activeRange: string;
 }
 
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({ isOnline, isEspOnline, onLogout, activeRange }) => {
+const DashboardHeader: React.FC<DashboardHeaderProps> = ({ isOnline, isEspOnline, onLogout }) => {
     const getDownloadUrl = () => {
         const token = localStorage.getItem("app_token");
         const baseUrl = (import.meta.env.VITE_API_URL || "http://localhost:5000").replace(/\/$/, "");
-        const url = `${baseUrl}/api/telemetry/download?token=${token}&range=${activeRange}`;
+        const url = `${baseUrl}/api/telemetry/download?token=${token}`;
         window.open(url, "_blank");
     };
 
@@ -49,7 +48,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ isOnline, isEspOnline
                     className="flex-1 sm:flex-none flex justify-center items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all active:scale-95 text-sm sm:text-base"
                 >
                     <Download size={18} />
-                    <span>Export ({activeRange})</span>
+                    <span>Export CSV</span>
                 </button>
                 <button
                     onClick={onLogout}

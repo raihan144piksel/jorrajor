@@ -42,6 +42,7 @@ const Dashboard: React.FC = () => {
   const [isEspOnline, setIsEspOnline] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [thresholds, setThresholds] = useState<ThresholdSettingsType | null>(null);
+  const [otaStatus, setOtaStatus] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const socketRef = useRef<Socket | null>(null);
@@ -61,7 +62,16 @@ const Dashboard: React.FC = () => {
 
   // 1. Initial Load for Live History & Thresholds
   useEffect(() => {
-    getTelemetry("30m", "none").then(res => setLiveHistory(res || []));
+    getTelemetry("30m", "none").then(res => {
+      setLiveHistory(res || []);
+      if (res && res.length > 0) {
+        const latestTime = new Date(res[res.length - 1].timestamp).getTime();
+        // If the latest data is older than 24 hours, change default analytics range to 30d
+        if (latestTime < Date.now() - 24 * 60 * 60 * 1000) {
+          setAnalyticsRange("30d");
+        }
+      }
+    });
     refreshStats();
     getSettings().then(res => setThresholds(res)).catch(err => console.error("Stats Error:", err));
   }, []);
@@ -111,6 +121,10 @@ const Dashboard: React.FC = () => {
 
     socket.on("esp_status", (online: boolean) => {
       setIsEspOnline(online);
+    });
+
+    socket.on("ota_status", (status: string) => {
+      setOtaStatus(status);
     });
 
     socket.on("telemetry_live", (payload: TelemetryData) => {
@@ -204,7 +218,7 @@ const Dashboard: React.FC = () => {
         return (
           <div className="space-y-8 animate-in fade-in duration-500">
             <ThresholdSettings />
-            <FotaPanel />
+            <FotaPanel otaStatus={otaStatus} />
           </div>
         );
       default:
@@ -226,7 +240,6 @@ const Dashboard: React.FC = () => {
             isOnline={isOnline}
             isEspOnline={isEspOnline}
             onLogout={handleLogout}
-            activeRange={analyticsRange}
           />
           
           {renderContent()}

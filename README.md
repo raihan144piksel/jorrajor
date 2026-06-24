@@ -8,10 +8,12 @@ SEMAI Smart Farm adalah sistem monitoring dan otomatisasi rumah kaca berbasis Io
 
 - **Real-time Monitoring**: Visualisasi data sensor (Suhu, Kelembapan, Tanah, Cahaya) secara instan via Socket.io.
 - **Dynamic Threshold**: Pengaturan ambang batas relay yang bisa diubah langsung dari dashboard tanpa _reflash_ alat.
-- **Deadband Filter**: Optimasi database (Report by Exception) — data hanya disimpan jika ada perubahan signifikan, menghemat storage hingga 90%.
+- **Deadband Filter**: Optimasi database (Report by Exception) — data hanya disimpan jika ada perubahan signifikan, menghemat storage.
 - **Non-Blocking Architecture**: Firmware ESP32 tetap menjalankan otomatisasi meskipun koneksi WiFi/MQTT terputus.
 - **WiFiManager**: Konfigurasi WiFi dinamis melalui Captive Portal (tanpa _hardcoded_ SSID/Password).
 - **History Analytics**: Grafik historis dengan agregasi 5-menit (Database Level) dan sistem _caching_ di frontend.
+- **Resilient History Fallback**: Sistem cerdas yang mendeteksi status offline perangkat dan menyesuaikan rentang waktu grafik serta unduhan agar selalu menampilkan rentang waktu aktif terakhir (bukan grafik kosong).
+- **FOTA Update Feedback**: Monitoring status instalasi firmware ESP32 jarak jauh (OTA) secara real-time langsung dari dashboard (Downloading, Installing, Success, Failed).
 - **Telegram Alerts**: Notifikasi otomatis ke Telegram saat pompa/kipas/lampu berubah status.
 
 ---
@@ -120,17 +122,25 @@ npm run dev
 
 ## 🔌 API Reference
 
-Semua endpoint kecuali `/login` dilindungi oleh middleware autentikasi. Gunakan header: `Authorization: Bearer <your_token>`.
+Semua endpoint kecuali `/api/login` dilindungi oleh middleware autentikasi. Gunakan header: `Authorization: Bearer <your_token>`.
+
+### Authentication
+
+- `POST /api/login`: Login pengguna untuk mendapatkan token JWT (`username` & `password`).
 
 ### Telemetry & Analytics
+
 - `GET /api/telemetry?range=30m&bin=none`: Mendapatkan data sensor murni atau teragregasi.
+- `GET /api/telemetry/table?page=1&limit=50`: Mendapatkan log riwayat sensor terpaginasi (untuk tabel).
 - `GET /api/telemetry/analytics`: Mendapatkan ringkasan statistik harian (Suhu Max/Min, Jam Tanah Kering).
-- `GET /api/telemetry/download`: Mengunduh log sensor mentah dalam format CSV.
+- `GET /api/telemetry/download`: Mengunduh seluruh data riwayat log sensor lengkap dalam format CSV secara efisien menggunakan Node.js streaming.
 
 ### Control, Settings & OTA
+
 - `POST /api/control`: Mengirim perintah manual (ON/OFF/AUTO) ke relay ESP32.
 - `GET /api/settings` & `POST /api/settings`: Mengatur ambang batas sensor.
 - `POST /api/ota/upload`: Mengunggah file `.bin` untuk update firmware jarak jauh. Mengirimkan sinyal otomatis via MQTT agar ESP32 memulai unduhan FOTA.
+- `GET /api/ota/firmware.bin`: Endpoint publik untuk mengunduh firmware terunggah (diakses secara otomatis oleh ESP32 saat FOTA).
 
 ---
 
@@ -147,7 +157,7 @@ Proyek ini menerapkan standar keamanan industri untuk melindungi data dan akses 
 
 ## 🛠️ Tech Stack
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS, Lucide Icons, Recharts, Axios.
+- **Frontend**: React 19, TypeScript, Tailwind CSS, Lucide Icons, Recharts, Axios.
 - **Backend**: Node.js, Express, TypeScript, MongoDB (Mongoose), Socket.io, MQTT.js.
 - **Firmware**: C++, Arduino Framework, WiFiManager, PubSubClient.
 
@@ -156,6 +166,7 @@ Proyek ini menerapkan standar keamanan industri untuk melindungi data dan akses 
 ## ☁️ Cara Deploy (Production)
 
 ### Backend
+
 1. Pastikan port TCP dibuka.
 2. Gunakan **PM2** dengan interpreter `tsx` agar server menyala terus-menerus:
    ```bash
@@ -163,6 +174,7 @@ Proyek ini menerapkan standar keamanan industri untuk melindungi data dan akses 
    ```
 
 ### Frontend
+
 1. Build aplikasi: `npm run build`.
 2. Upload folder `dist/` ke **Vercel**, **Netlify**, atau Cloud hosting.
 3. Jangan lupa atur _redirect rules_ agar SPA React Router tidak mengembalikan error 404 saat halamannya di-_refresh_.
