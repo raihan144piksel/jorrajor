@@ -59,16 +59,29 @@ export const initMqtt = (io: Server): void => {
           espOnline = true;
           io.emit("esp_status", true);
         }
-        const data = JSON.parse(message.toString());
+        const raw = JSON.parse(message.toString());
 
         // Jika ini adalah pesan status OTA, update ke frontend dan abaikan penyimpanan DB
-        if (data.state_ota) {
-          io.emit("ota_status", data.state_ota);
+        if (raw.state_ota) {
+          io.emit("ota_status", raw.state_ota);
           return;
         }
 
-        // INJEKSI SERVER TIME agar data selalu punya timestamp valid
-        data.timestamp = new Date().toISOString();
+        // Map shortened JSON keys from the firmware back to the full database schema keys
+        const data = {
+          device_id: raw.id,
+          suhu: raw.t,
+          kelembapan_udara: raw.h,
+          tanah: raw.s,
+          cahaya: raw.l,
+          status_kipas: raw.sk,
+          state_kipas: raw.ek,
+          status_pompa: raw.sp,
+          state_pompa: raw.ep,
+          status_lampu: raw.sl,
+          state_lampu: raw.el,
+          timestamp: new Date().toISOString(),
+        };
         
         // TETAP KIRIM KE FRONTEND SECARA LIVE agar UI terasa responsif
         io.emit("telemetry_live", data);

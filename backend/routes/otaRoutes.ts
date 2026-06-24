@@ -31,7 +31,10 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => cb(null, "firmware.bin"),
 });
 
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 } // limit firmware file size to 2MB max
+});
 
 router.post("/upload", authenticateToken, upload.single("firmware"), (req, res) => {
   if (!req.file) {

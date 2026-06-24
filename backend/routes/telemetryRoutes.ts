@@ -18,7 +18,7 @@ router.get(
       else if (rangeStr.endsWith("d")) msRange = parseInt(rangeStr) * 24 * 60 * 60 * 1000;
 
       let endTime = new Date();
-      const latestDoc = await Telemetry.findOne().sort({ timestamp: -1 });
+      const latestDoc = await Telemetry.findOne().sort({ timestamp: -1 }).lean();
       if (latestDoc) {
         const latestTime = new Date(latestDoc.timestamp);
         // If the latest data is older than 10 minutes, adjust the query end time
@@ -34,7 +34,7 @@ router.get(
       let result;
 
       if (binStr === "none") {
-        result = await Telemetry.find({ timestamp: { $gte: startTime, $lte: endTime } }).sort({ timestamp: 1 });
+        result = await Telemetry.find({ timestamp: { $gte: startTime, $lte: endTime } }).sort({ timestamp: 1 }).lean();
       } else {
         let binUnit = "minute";
         let binSize = 5;
@@ -94,7 +94,7 @@ router.get(
       }
 
       if (result.length === 0) {
-        const fallbackData = await Telemetry.find().sort({ timestamp: -1 }).limit(20);
+        const fallbackData = await Telemetry.find().sort({ timestamp: -1 }).limit(20).lean();
         result = fallbackData.reverse();
       }
 
@@ -116,7 +116,7 @@ router.get(
       const skip = (page - 1) * limit;
 
       const [docs, total] = await Promise.all([
-        Telemetry.find().sort({ timestamp: -1 }).skip(skip).limit(limit),
+        Telemetry.find().sort({ timestamp: -1 }).skip(skip).limit(limit).lean(),
         Telemetry.estimatedDocumentCount()
       ]);
 
@@ -160,7 +160,7 @@ router.get(
       res.write(headers.join(",") + "\n");
 
       // Stream all data from MongoDB sorted by timestamp
-      const cursor = Telemetry.find().sort({ timestamp: 1 }).cursor();
+      const cursor = Telemetry.find().sort({ timestamp: 1 }).lean().cursor();
 
       // Ensure cursor is closed if the request is aborted
       req.on("close", () => {
@@ -212,7 +212,7 @@ router.get(
   async (req: Request, res: Response): Promise<void> => {
     try {
       let endTime = new Date();
-      const latestDoc = await Telemetry.findOne().sort({ timestamp: -1 });
+      const latestDoc = await Telemetry.findOne().sort({ timestamp: -1 }).lean();
       if (latestDoc) {
         const latestTime = new Date(latestDoc.timestamp);
         if (latestTime.getTime() < Date.now() - 10 * 60 * 1000) {
@@ -237,7 +237,7 @@ router.get(
         ]),
         Telemetry.findOne(filter).sort({
           tanah: 1,
-        }),
+        }).lean(),
         Telemetry.estimatedDocumentCount(), // Total data seluruh waktu
       ]);
 
