@@ -3,6 +3,7 @@ import axios from "axios";
 import { Server } from "socket.io";
 import Telemetry from "../models/Telemetry.js";
 import { ENV } from "../config/env.js";
+import DeviceLog from "../models/DeviceLog.js";
 
 let mqttClient: MqttClient | undefined;
 let espOnline = false;
@@ -55,16 +56,20 @@ export const initMqtt = (io: Server): void => {
   mqttClient.on("message", async (topic, message) => {
     if (topic === "smartfarm/telemetry") {
       try {
-        if (!espOnline) {
-          espOnline = true;
-          io.emit("esp_status", true);
-        }
         const raw = JSON.parse(message.toString());
 
         // Jika ini adalah pesan status OTA, update ke frontend dan abaikan penyimpanan DB
         if (raw.state_ota) {
           io.emit("ota_status", raw.state_ota);
           return;
+        }
+
+        if (!espOnline) {
+          espOnline = true;
+          io.emit("esp_status", true);
+          DeviceLog.create({ device_id: raw.id || "ESP32_MAIN", event: "ONLINE" }).catch((err) =>
+            console.error("Gagal menyimpan log koneksi:", err)
+          );
         }
 
         // Map shortened JSON keys from the firmware back to the full database schema keys
@@ -92,6 +97,9 @@ export const initMqtt = (io: Server): void => {
           espOnline = false;
           io.emit("esp_status", false);
           console.log("⚠️ ESP32 Offline (Timeout)");
+          DeviceLog.create({ device_id: raw.id || "ESP32_MAIN", event: "OFFLINE" }).catch((err) =>
+            console.error("Gagal menyimpan log diskoneksi:", err)
+          );
         }, 30000);
 
         // 1. Parsing & Destructuring data
@@ -132,6 +140,18 @@ export const initMqtt = (io: Server): void => {
 
         // 2. Simpan ke Database JIKA lolos filter
         if (isSignificantChange || isTimeForced) {
+          // Update save trackers immediately before yielding to prevent async duplicate writes
+          lastSaveTime = now;
+          lastSavedData = {
+            suhu: pSuhu,
+            kelembapan_udara: pKelembapan,
+            tanah: pTanah,
+            cahaya: pCahaya,
+            status_kipas,
+            status_pompa,
+            status_lampu,
+          };
+
           await Telemetry.create({
             device_id: device_id || "ESP32_MAIN",
             suhu: pSuhu,
@@ -144,20 +164,8 @@ export const initMqtt = (io: Server): void => {
             state_kipas,
             state_pompa,
             state_lampu,
-            timestamp: data.timestamp, // Gunakan timestamp yang sama dengan socket
+            timestamp: data.timestamp,
           });
-
-          // Update data terakhir yang disimpan
-          lastSaveTime = now;
-          lastSavedData = {
-            suhu: pSuhu,
-            kelembapan_udara: pKelembapan,
-            tanah: pTanah,
-            cahaya: pCahaya,
-            status_kipas,
-            status_pompa,
-            status_lampu,
-          };
           
           console.log(`💾 Saved to DB (Trigger: ${isSignificantChange ? 'Data Changed' : 'Time Forced'})`);
         }

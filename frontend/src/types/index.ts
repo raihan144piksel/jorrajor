@@ -32,3 +32,20 @@ export interface ControlPayload {
   device: "kipas" | "pompa" | "lampu";
   status: boolean;
 }
+
+export interface LoginLogData {
+  _id: string;
+  username: string;
+  ip_address: string;
+  status: "SUCCESS" | "FAILED";
+  timestamp: string;
+}
+
+export interface DeviceLogData {
+  _id: string;
+  device_id: string;
+  event: "ONLINE" | "OFFLINE";
+  timestamp: string;
+}
+
+

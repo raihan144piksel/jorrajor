@@ -1,5 +1,5 @@
 import axios, { InternalAxiosRequestConfig } from "axios";
-import { TelemetryData, AnalyticsData, ThresholdSettings } from "../types";
+import { TelemetryData, AnalyticsData, ThresholdSettings, LoginLogData, DeviceLogData } from "../types";
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -138,3 +138,14 @@ export const updateSettings = async (
   );
   return response.data;
 };
+
+export const getLoginLogs = async (): Promise<LoginLogData[]> => {
+  const response = await apiClient.get<LoginLogData[]>("/login-logs");
+  return response.data;
+};
+
+export const getDeviceLogs = async (): Promise<DeviceLogData[]> => {
+  const response = await apiClient.get<DeviceLogData[]>("/telemetry/device-logs");
+  return response.data;
+};
+

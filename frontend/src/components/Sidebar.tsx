@@ -7,7 +7,8 @@ import {
   LogOut,
   Leaf,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  History
 } from "lucide-react";
 
 interface SidebarProps {
@@ -23,8 +24,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) 
     { id: "overview", label: "Ringkasan", icon: <LayoutDashboard size={22} /> },
     { id: "analytics", label: "Analitik", icon: <BarChart3 size={22} /> },
     { id: "weather", label: "Cuaca", icon: <CloudSun size={22} /> },
+    { id: "logs", label: "Log Masuk", icon: <History size={22} /> },
     { id: "settings", label: "Konfigurasi", icon: <Settings size={22} /> },
   ];
+
 
   return (
     <>

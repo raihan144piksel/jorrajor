@@ -11,6 +11,8 @@ const requiredEnvVars = [
   "MQTT_PASS",
   "TG_TOKEN",
   "TG_CHAT_ID",
+  "ADMIN_USERNAME",
+  "ADMIN_PASSWORD",
 ];
 
 // Validasi tersentralisasi (Fail-Fast)
@@ -33,4 +35,6 @@ export const ENV = {
   MQTT_PASS: process.env.MQTT_PASS as string,
   TG_TOKEN: process.env.TG_TOKEN as string,
   TG_CHAT_ID: process.env.TG_CHAT_ID as string,
+  ADMIN_USERNAME: process.env.ADMIN_USERNAME as string,
+  ADMIN_PASSWORD: process.env.ADMIN_PASSWORD as string,
 };

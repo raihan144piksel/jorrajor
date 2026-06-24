@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from "express";
 import Telemetry from "../models/Telemetry.js";
 import { authenticateToken } from "../middlewares/authMiddleware.js";
+import DeviceLog from "../models/DeviceLog.js";
 
 const router = express.Router();
 
@@ -273,6 +274,19 @@ router.get(
       res.status(500).json({ error: "Gagal mengambil data analitik" });
     }
   },
+);
+
+router.get(
+  "/device-logs",
+  authenticateToken,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const logs = await DeviceLog.find().sort({ timestamp: -1 }).limit(50).lean();
+      res.json(logs);
+    } catch (err: unknown) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  }
 );
 
 export default router;
