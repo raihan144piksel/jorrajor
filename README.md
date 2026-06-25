@@ -7,6 +7,7 @@ SEMAI Smart Farm adalah sistem monitoring dan otomatisasi rumah kaca berbasis Io
 ## ✨ Fitur Utama
 
 - **Real-time Monitoring**: Visualisasi data sensor (Suhu, Kelembapan, Tanah, Cahaya) secara instan via Socket.io.
+- **Multi-Node Support**: Pemantauan dan kontrol beberapa node rumah kaca (zona/device ID) secara dinamis dari satu dashboard.
 - **Dynamic Threshold**: Pengaturan ambang batas relay yang bisa diubah langsung dari dashboard tanpa _reflash_ alat.
 - **Deadband Filter**: Optimasi database (Report by Exception) — data hanya disimpan jika ada perubahan signifikan, menghemat storage.
 - **Non-Blocking Architecture**: Firmware ESP32 tetap menjalankan otomatisasi meskipun koneksi WiFi/MQTT terputus.
@@ -15,6 +16,7 @@ SEMAI Smart Farm adalah sistem monitoring dan otomatisasi rumah kaca berbasis Io
 - **Resilient History Fallback**: Sistem cerdas yang mendeteksi status offline perangkat dan menyesuaikan rentang waktu grafik serta unduhan agar selalu menampilkan rentang waktu aktif terakhir (bukan grafik kosong).
 - **FOTA Update Feedback**: Monitoring status instalasi firmware ESP32 jarak jauh (OTA) secara real-time langsung dari dashboard (Downloading, Installing, Success, Failed).
 - **Telegram Alerts**: Notifikasi otomatis ke Telegram saat pompa/kipas/lampu berubah status.
+- **Activity & Connection Logs**: Log riwayat percobaan masuk pengguna (disertai IP Address) dan status konektivitas (online/offline) perangkat ESP32.
 
 ---
 
