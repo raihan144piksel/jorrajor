@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
-import { getTelemetry, getAnalytics, sendControl, getSettings, getLoginLogs, getDeviceLogs, getNodes, backendUrl } from "../services/api";
+import { getTelemetry, getAnalytics, sendControl, getSettings, getLoginLogs, getDeviceLogs, getNodes, backendUrl, ChatMessage } from "../services/api";
 import { TelemetryData, AnalyticsData, ThresholdSettings as ThresholdSettingsType, LoginLogData, DeviceLogData } from "../types";
 import DashboardHeader from "../components/DashboardHeader";
 import SensorGrid from "../components/SensorGrid";
@@ -13,6 +13,7 @@ import Sidebar from "../components/Sidebar";
 import WeatherForecast from "../components/WeatherForecast";
 import ThresholdSettings from "../components/ThresholdSettings";
 import FotaPanel from "../components/FotaPanel";
+import AiPanel from "../components/AiPanel";
 import toast from "react-hot-toast";
 import { Shield, User, Globe, RefreshCw, Download, ShieldCheck, ShieldAlert, Wifi, Cpu } from "lucide-react";
 
@@ -50,6 +51,12 @@ const Dashboard: React.FC = () => {
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [thresholds, setThresholds] = useState<ThresholdSettingsType | null>(null);
   const [otaStatus, setOtaStatus] = useState<string | null>(null);
+  const [aiMessages, setAiMessages] = useState<ChatMessage[]>([
+    {
+      role: "model",
+      text: "Halo! Saya adalah SEMAI AI Greenhouse Assistant. Saya memantau kondisi greenhouse Anda secara real-time. Ada yang bisa saya bantu hari ini?",
+    },
+  ]);
 
   const navigate = useNavigate();
   const socketRef = useRef<Socket | null>(null);
@@ -371,6 +378,17 @@ const Dashboard: React.FC = () => {
               onThresholdsChange={setThresholds} 
             />
             <FotaPanel otaStatus={otaStatus} selectedNode={selectedNode} />
+          </div>
+        );
+      case "ai":
+        return (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <AiPanel 
+              selectedNode={selectedNode} 
+              messages={aiMessages}
+              setMessages={setAiMessages}
+              onThresholdsChange={setThresholds}
+            />
           </div>
         );
       case "logs": {

@@ -8,7 +8,8 @@ import {
   Leaf,
   ChevronLeft,
   ChevronRight,
-  History
+  History,
+  Bot
 } from "lucide-react";
 
 interface SidebarProps {
@@ -24,6 +25,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) 
     { id: "overview", label: "Ringkasan", icon: <LayoutDashboard size={22} /> },
     { id: "analytics", label: "Analitik", icon: <BarChart3 size={22} /> },
     { id: "weather", label: "Cuaca", icon: <CloudSun size={22} /> },
+    { id: "ai", label: "Asisten AI", icon: <Bot size={22} /> },
     { id: "logs", label: "Log Masuk", icon: <History size={22} /> },
     { id: "settings", label: "Konfigurasi", icon: <Settings size={22} /> },
   ];

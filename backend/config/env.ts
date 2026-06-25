@@ -37,4 +37,5 @@ export const ENV = {
   TG_CHAT_ID: process.env.TG_CHAT_ID as string,
   ADMIN_USERNAME: process.env.ADMIN_USERNAME as string,
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD as string,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY as string | undefined,
 };
