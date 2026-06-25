@@ -1,19 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Wind, Droplets, Lightbulb } from "lucide-react";
 import type { TelemetryData, ThresholdSettings } from "../types";
-import { getSettings } from "../services/api";
 
 interface ActuatorGridProps {
     data: TelemetryData;
+    thresholds: ThresholdSettings | null;
     onControl: (device: string, mode: number) => void;
 }
 
-const ActuatorGrid: React.FC<ActuatorGridProps> = ({ data, onControl }) => {
-    const [thresholds, setThresholds] = useState<ThresholdSettings | null>(null);
-
-    useEffect(() => {
-        getSettings().then(setThresholds).catch(console.error);
-    }, []);
+const ActuatorGrid: React.FC<ActuatorGridProps> = ({ data, thresholds, onControl }) => {
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

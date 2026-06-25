@@ -311,7 +311,7 @@ const Dashboard: React.FC = () => {
         return (
           <div className="space-y-8 animate-in fade-in duration-500">
             <SensorGrid data={data} />
-            <ActuatorGrid data={data} onControl={handleControl} />
+            <ActuatorGrid data={data} thresholds={thresholds} onControl={handleControl} />
             
             <div className="bg-slate-800 p-4 sm:p-6 rounded-3xl shadow-xl border border-slate-700/50">
               <h2 className="text-lg sm:text-xl font-bold text-white mb-4 sm:mb-6">Grafik Real-time</h2>
@@ -353,7 +353,7 @@ const Dashboard: React.FC = () => {
               <HistoryChart data={analyticsHistory} />
             </div>
 
-            <TelemetryTable selectedNode={selectedNode} />
+            <TelemetryTable selectedNode={selectedNode} thresholds={thresholds} />
           </div>
         );
       case "weather":
@@ -365,7 +365,11 @@ const Dashboard: React.FC = () => {
       case "settings":
         return (
           <div className="space-y-8 animate-in fade-in duration-500">
-            <ThresholdSettings selectedNode={selectedNode} />
+            <ThresholdSettings 
+              selectedNode={selectedNode} 
+              thresholds={thresholds} 
+              onThresholdsChange={setThresholds} 
+            />
             <FotaPanel otaStatus={otaStatus} selectedNode={selectedNode} />
           </div>
         );

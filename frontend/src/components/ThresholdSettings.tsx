@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { Settings as SettingsIcon } from "lucide-react";
 import toast from "react-hot-toast";
-import { getSettings, updateSettings } from "../services/api";
+import { updateSettings } from "../services/api";
 import { ThresholdSettings as ThresholdSettingsType } from "../types";
 
 interface ThresholdSettingsProps {
   selectedNode: string;
+  thresholds: ThresholdSettingsType | null;
+  onThresholdsChange: (newThresholds: ThresholdSettingsType) => void;
 }
 
-const ThresholdSettings: React.FC<ThresholdSettingsProps> = ({ selectedNode }) => {
-    const [thresholds, setThresholds] = useState<ThresholdSettingsType>({
+const ThresholdSettings: React.FC<ThresholdSettingsProps> = ({ selectedNode, thresholds, onThresholdsChange }) => {
+    const [formThresholds, setFormThresholds] = useState<ThresholdSettingsType>({
         temp_threshold: 30,
         hum_threshold: 40,
         light_threshold: 20,
@@ -18,17 +20,18 @@ const ThresholdSettings: React.FC<ThresholdSettingsProps> = ({ selectedNode }) =
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        getSettings(selectedNode)
-            .then((res) => setThresholds(res))
-            .catch(console.error);
-    }, [selectedNode]);
+        if (thresholds) {
+            setFormThresholds(thresholds);
+        }
+    }, [thresholds]);
 
     const handleUpdateThresholds = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsSaving(true);
         try {
-            await updateSettings({ ...thresholds, device_id: selectedNode });
+            await updateSettings({ ...formThresholds, device_id: selectedNode });
             toast.success("Pengaturan berhasil disimpan!");
+            onThresholdsChange(formThresholds);
         } catch (err) {
             toast.error("Gagal menyimpan pengaturan");
             console.error("Thresholds error:", err);
@@ -57,10 +60,10 @@ const ThresholdSettings: React.FC<ThresholdSettingsProps> = ({ selectedNode }) =
                     <div className="flex items-center gap-2">
                         <input
                             type="number"
-                            value={thresholds.temp_threshold}
+                            value={formThresholds.temp_threshold}
                             onChange={(e) =>
-                                setThresholds({
-                                    ...thresholds,
+                                setFormThresholds({
+                                    ...formThresholds,
                                     temp_threshold: Number(e.target.value),
                                 })
                             }
@@ -77,10 +80,10 @@ const ThresholdSettings: React.FC<ThresholdSettingsProps> = ({ selectedNode }) =
                     <div className="flex items-center gap-2">
                         <input
                             type="number"
-                            value={thresholds.hum_threshold}
+                            value={formThresholds.hum_threshold}
                             onChange={(e) =>
-                                setThresholds({
-                                    ...thresholds,
+                                setFormThresholds({
+                                    ...formThresholds,
                                     hum_threshold: Number(e.target.value),
                                 })
                             }
@@ -97,10 +100,10 @@ const ThresholdSettings: React.FC<ThresholdSettingsProps> = ({ selectedNode }) =
                     <div className="flex items-center gap-2">
                         <input
                             type="number"
-                            value={thresholds.light_threshold}
+                            value={formThresholds.light_threshold}
                             onChange={(e) =>
-                                setThresholds({
-                                    ...thresholds,
+                                setFormThresholds({
+                                    ...formThresholds,
                                     light_threshold: Number(e.target.value),
                                 })
                             }
@@ -117,10 +120,10 @@ const ThresholdSettings: React.FC<ThresholdSettingsProps> = ({ selectedNode }) =
                     <div className="flex items-center gap-2">
                         <input
                             type="number"
-                            value={thresholds.retention_days}
+                            value={formThresholds.retention_days}
                             onChange={(e) =>
-                                setThresholds({
-                                    ...thresholds,
+                                setFormThresholds({
+                                    ...formThresholds,
                                     retention_days: Number(e.target.value),
                                 })
                             }

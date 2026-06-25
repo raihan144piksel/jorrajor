@@ -11,26 +11,22 @@ import {
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
-import { getTableData, getSettings } from "../services/api";
+import { getTableData } from "../services/api";
 
 interface TelemetryTableProps {
   selectedNode: string;
+  thresholds: ThresholdSettings | null;
 }
 
-const TelemetryTable: React.FC<TelemetryTableProps> = ({ selectedNode }) => {
+const TelemetryTable: React.FC<TelemetryTableProps> = ({ selectedNode, thresholds }) => {
   const [currentData, setCurrentData] = useState<TelemetryData[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [thresholds, setThresholds] = useState<ThresholdSettings | null>(null);
   const rowsPerPage = 50;
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedNode]);
-
-  useEffect(() => {
-    getSettings(selectedNode).then(setThresholds).catch(console.error);
   }, [selectedNode]);
 
   useEffect(() => {
