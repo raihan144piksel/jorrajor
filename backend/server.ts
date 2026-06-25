@@ -6,7 +6,7 @@ import { Server } from "socket.io";
 import { connectDB } from "./config/db.js";
 import {
   initMqtt,
-  isEspOnline,
+  getOnlineDevices,
   getMqttClient,
 } from "./services/mqttService.js";
 import { startCleanupJob } from "./services/cleanupService.js";
@@ -40,7 +40,7 @@ const io = new Server(httpServer, {
 });
 
 io.on("connection", (socket) => {
-  socket.emit("esp_status", isEspOnline());
+  socket.emit("esp_statuses", getOnlineDevices());
 });
 
 initMqtt(io);

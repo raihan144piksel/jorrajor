@@ -27,7 +27,7 @@ for (const envVar of requiredEnvVars) {
 export const ENV = {
   PORT: process.env.PORT as string,
   NODE_ENV: process.env.NODE_ENV as string,
-  FRONTEND_URL: process.env.FRONTEND_URL as string,
+  FRONTEND_URL: (process.env.FRONTEND_URL as string).replace(/\/$/, ""),
   JWT_SECRET: process.env.JWT_SECRET as string,
   MONGO_URI: process.env.MONGO_URI as string,
   MQTT_URL: process.env.MQTT_URL as string,

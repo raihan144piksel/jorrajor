@@ -42,7 +42,7 @@ router.post("/upload", authenticateToken, upload.single("firmware"), (req, res) 
     return;
   }
 
-  const { serverUrl } = req.body;
+  const { serverUrl, device_id = "device0" } = req.body;
   let baseUrl = serverUrl || `http://localhost:${ENV.PORT}`;
   
   if (baseUrl.includes("localhost") || baseUrl.includes("127.0.0.1")) {
@@ -53,10 +53,10 @@ router.post("/upload", authenticateToken, upload.single("firmware"), (req, res) 
 
   const mqttClient = getMqttClient();
   if (mqttClient) {
-    mqttClient.publish("smartfarm/ota", JSON.stringify({ url: firmwareUrl }));
+    mqttClient.publish("smartfarm/ota", JSON.stringify({ id: device_id, url: firmwareUrl }));
   }
 
-  res.json({ message: "Firmware berhasil diunggah. ESP32 sedang melakukan update.", url: firmwareUrl });
+  res.json({ message: `Firmware berhasil diunggah. Perangkat ${device_id} sedang melakukan update.`, url: firmwareUrl });
 });
 
 router.get("/firmware.bin", (req, res) => {

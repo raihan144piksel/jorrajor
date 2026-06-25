@@ -6,8 +6,8 @@ import { ENV } from "../config/env.js";
 import DeviceLog from "../models/DeviceLog.js";
 
 let mqttClient: MqttClient | undefined;
-let espOnline = false;
-let espTimeout: NodeJS.Timeout;
+const onlineDevices = new Map<string, boolean>();
+const deviceTimeouts = new Map<string, NodeJS.Timeout>();
 let lastReportedStates = {
   kipas: false,
   pompa: false,
@@ -57,6 +57,7 @@ export const initMqtt = (io: Server): void => {
     if (topic === "smartfarm/telemetry") {
       try {
         const raw = JSON.parse(message.toString());
+        const deviceId = raw.id || "device0";
 
         // Jika ini adalah pesan status OTA, update ke frontend dan abaikan penyimpanan DB
         if (raw.state_ota) {
@@ -64,17 +65,17 @@ export const initMqtt = (io: Server): void => {
           return;
         }
 
-        if (!espOnline) {
-          espOnline = true;
-          io.emit("esp_status", true);
-          DeviceLog.create({ device_id: raw.id || "ESP32_MAIN", event: "ONLINE" }).catch((err) =>
+        if (!onlineDevices.get(deviceId)) {
+          onlineDevices.set(deviceId, true);
+          io.emit("esp_status", { device_id: deviceId, online: true });
+          DeviceLog.create({ device_id: deviceId, event: "ONLINE" }).catch((err) =>
             console.error("Gagal menyimpan log koneksi:", err)
           );
         }
 
         // Map shortened JSON keys from the firmware back to the full database schema keys
         const data = {
-          device_id: raw.id,
+          device_id: deviceId,
           suhu: raw.t,
           kelembapan_udara: raw.h,
           tanah: raw.s,
@@ -92,15 +93,19 @@ export const initMqtt = (io: Server): void => {
         io.emit("telemetry_live", data);
 
         // Heartbeat Logic
-        clearTimeout(espTimeout);
-        espTimeout = setTimeout(() => {
-          espOnline = false;
-          io.emit("esp_status", false);
-          console.log("⚠️ ESP32 Offline (Timeout)");
-          DeviceLog.create({ device_id: raw.id || "ESP32_MAIN", event: "OFFLINE" }).catch((err) =>
+        const oldTimeout = deviceTimeouts.get(deviceId);
+        if (oldTimeout) clearTimeout(oldTimeout);
+
+        const newTimeout = setTimeout(() => {
+          onlineDevices.set(deviceId, false);
+          io.emit("esp_status", { device_id: deviceId, online: false });
+          console.log(`⚠️ ESP32 Offline: ${deviceId} (Timeout)`);
+          DeviceLog.create({ device_id: deviceId, event: "OFFLINE" }).catch((err) =>
             console.error("Gagal menyimpan log diskoneksi:", err)
           );
         }, 30000);
+
+        deviceTimeouts.set(deviceId, newTimeout);
 
         // 1. Parsing & Destructuring data
         const {
@@ -153,7 +158,7 @@ export const initMqtt = (io: Server): void => {
           };
 
           await Telemetry.create({
-            device_id: device_id || "ESP32_MAIN",
+            device_id: device_id || "device0",
             suhu: pSuhu,
             kelembapan_udara: pKelembapan,
             tanah: pTanah,
@@ -223,4 +228,10 @@ export const initMqtt = (io: Server): void => {
 };
 
 export const getMqttClient = (): MqttClient | undefined => mqttClient;
-export const isEspOnline = (): boolean => espOnline;
+export const getOnlineDevices = (): Record<string, boolean> => {
+  const obj: Record<string, boolean> = {};
+  onlineDevices.forEach((val, key) => {
+    obj[key] = val;
+  });
+  return obj;
+};

@@ -7,7 +7,7 @@ export interface IDeviceLog extends Document {
 }
 
 const deviceLogSchema: Schema = new mongoose.Schema({
-  device_id: { type: String, required: true, default: "ESP32_MAIN" },
+  device_id: { type: String, required: true, default: "device0" },
   event: { type: String, required: true },
   timestamp: { type: Date, default: Date.now },
 });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { io, Socket } from "socket.io-client";
-import { getTelemetry, getAnalytics, sendControl, getSettings, getLoginLogs, getDeviceLogs } from "../services/api";
+import { getTelemetry, getAnalytics, sendControl, getSettings, getLoginLogs, getDeviceLogs, getNodes, backendUrl } from "../services/api";
 import { TelemetryData, AnalyticsData, ThresholdSettings as ThresholdSettingsType, LoginLogData, DeviceLogData } from "../types";
 import DashboardHeader from "../components/DashboardHeader";
 import SensorGrid from "../components/SensorGrid";
@@ -14,9 +14,7 @@ import WeatherForecast from "../components/WeatherForecast";
 import ThresholdSettings from "../components/ThresholdSettings";
 import FotaPanel from "../components/FotaPanel";
 import toast from "react-hot-toast";
-import { Shield, User, Globe, RefreshCw, Download, ShieldCheck, ShieldAlert, Wifi, Calendar, Cpu } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+import { Shield, User, Globe, RefreshCw, Download, ShieldCheck, ShieldAlert, Wifi, Cpu } from "lucide-react";
 
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -25,6 +23,8 @@ const Dashboard: React.FC = () => {
   const [deviceLogs, setDeviceLogs] = useState<DeviceLogData[]>([]);
   const [isLoadingDeviceLogs, setIsLoadingDeviceLogs] = useState(false);
   const [subLogTab, setSubLogTab] = useState<"login" | "device">("login");
+  const [nodes, setNodes] = useState<string[]>(["device0"]);
+  const [selectedNode, setSelectedNode] = useState<string>("device0");
   const [data, setData] = useState<TelemetryData>({
     suhu: 0,
     kelembapan_udara: 0,
@@ -45,13 +45,19 @@ const Dashboard: React.FC = () => {
   const [analyticsRange, setAnalyticsRange] = useState("24h");
   
   const [isOnline, setIsOnline] = useState(false);
-  const [isEspOnline, setIsEspOnline] = useState(false);
+  const [espStatuses, setEspStatuses] = useState<Record<string, boolean>>({});
+  const isEspOnline = espStatuses[selectedNode] || false;
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [thresholds, setThresholds] = useState<ThresholdSettingsType | null>(null);
   const [otaStatus, setOtaStatus] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const socketRef = useRef<Socket | null>(null);
+  const selectedNodeRef = useRef(selectedNode);
+
+  useEffect(() => {
+    selectedNodeRef.current = selectedNode;
+  }, [selectedNode]);
 
   const handleLogout = () => {
     localStorage.removeItem("app_token");
@@ -61,14 +67,33 @@ const Dashboard: React.FC = () => {
   };
 
   const refreshStats = () => {
-    getAnalytics()
+    getAnalytics(selectedNode)
       .then((res) => setAnalytics(res))
       .catch((err) => console.error("Stats Error:", err));
+    getNodes()
+      .then((res) => {
+        if (res && res.length > 0) setNodes(res);
+      })
+      .catch((err) => console.error("Gagal refresh list node:", err));
   };
 
-  // 1. Initial Load for Live History & Thresholds
+  // Load unique nodes on mount
   useEffect(() => {
-    getTelemetry("30m", "none").then(res => {
+    getNodes()
+      .then((res) => {
+        if (res && res.length > 0) {
+          setNodes(res);
+          if (!res.includes(selectedNode)) {
+            setSelectedNode(res[0]);
+          }
+        }
+      })
+      .catch((err) => console.error("Gagal memuat list node:", err));
+  }, []);
+
+  // 1. Load for Live History, Stats, and Thresholds based on selectedNode
+  useEffect(() => {
+    getTelemetry("30m", "none", selectedNode).then(res => {
       setLiveHistory(res || []);
       if (res && res.length > 0) {
         const latestTime = new Date(res[res.length - 1].timestamp).getTime();
@@ -79,8 +104,8 @@ const Dashboard: React.FC = () => {
       }
     });
     refreshStats();
-    getSettings().then(res => setThresholds(res)).catch(err => console.error("Stats Error:", err));
-  }, []);
+    getSettings(selectedNode).then(res => setThresholds(res)).catch(err => console.error("Stats Error:", err));
+  }, [selectedNode]);
 
   // 1.5. Threshold Alert Toasts
   useEffect(() => {
@@ -97,7 +122,7 @@ const Dashboard: React.FC = () => {
     }
   }, [liveHistory, thresholds]);
 
-  // 2. Load Analytics Data when tab or range changes
+  // 2. Load Analytics Data when tab, range, or selectedNode changes
   useEffect(() => {
     if (activeTab === "analytics") {
       let bin = "5m";
@@ -105,9 +130,9 @@ const Dashboard: React.FC = () => {
       else if (analyticsRange === "7d") bin = "1h";
       else if (analyticsRange === "1h") bin = "1m";
       
-      getTelemetry(analyticsRange, bin).then(res => setAnalyticsHistory(res || []));
+      getTelemetry(analyticsRange, bin, selectedNode).then(res => setAnalyticsHistory(res || []));
     }
-  }, [activeTab, analyticsRange]);
+  }, [activeTab, analyticsRange, selectedNode]);
 
   // Fetch Login Logs on tab change
   const fetchLogs = () => {
@@ -223,7 +248,7 @@ const Dashboard: React.FC = () => {
   // 3. Socket.io Connection
   useEffect(() => {
     const token = localStorage.getItem("app_token");
-    const socket = io(API_URL, {
+    const socket = io(backendUrl, {
       auth: { token },
       transports: ["polling", "websocket"], // Mulai dengan polling untuk stabilitas, lalu upgrade
       reconnection: true,
@@ -236,15 +261,21 @@ const Dashboard: React.FC = () => {
     socket.on("connect", () => setIsOnline(true));
     socket.on("disconnect", () => setIsOnline(false));
 
-    socket.on("esp_status", (online: boolean) => {
-      setIsEspOnline(online);
+    socket.on("esp_statuses", (statuses: Record<string, boolean>) => {
+      setEspStatuses(statuses);
+    });
+
+    socket.on("esp_status", (payload: { device_id: string; online: boolean }) => {
+      setEspStatuses((prev) => ({ ...prev, [payload.device_id]: payload.online }));
     });
 
     socket.on("ota_status", (status: string) => {
       setOtaStatus(status);
     });
 
-    socket.on("telemetry_live", (payload: TelemetryData) => {
+    socket.on("telemetry_live", (payload: TelemetryData & { device_id?: string }) => {
+      if (payload.device_id && payload.device_id !== selectedNodeRef.current) return;
+
       const dataWithTime = {
         ...payload,
         timestamp: payload.timestamp || new Date().toISOString(),
@@ -268,7 +299,7 @@ const Dashboard: React.FC = () => {
 
   const handleControl = async (device: string, mode: number) => {
     try {
-      await sendControl(device, mode);
+      await sendControl(device, mode, selectedNode);
     } catch (err) {
       console.error(`[Override] Gagal mengontrol ${device}:`, err);
     }
@@ -322,7 +353,7 @@ const Dashboard: React.FC = () => {
               <HistoryChart data={analyticsHistory} />
             </div>
 
-            <TelemetryTable />
+            <TelemetryTable selectedNode={selectedNode} />
           </div>
         );
       case "weather":
@@ -334,8 +365,8 @@ const Dashboard: React.FC = () => {
       case "settings":
         return (
           <div className="space-y-8 animate-in fade-in duration-500">
-            <ThresholdSettings />
-            <FotaPanel otaStatus={otaStatus} />
+            <ThresholdSettings selectedNode={selectedNode} />
+            <FotaPanel otaStatus={otaStatus} selectedNode={selectedNode} />
           </div>
         );
       case "logs": {
@@ -659,6 +690,9 @@ const Dashboard: React.FC = () => {
             isOnline={isOnline}
             isEspOnline={isEspOnline}
             onLogout={handleLogout}
+            nodes={nodes}
+            selectedNode={selectedNode}
+            setSelectedNode={setSelectedNode}
           />
           
           {renderContent()}

@@ -8,15 +8,18 @@ const router = express.Router();
 router
   .route("/")
   .get(authenticateToken, async (req: Request, res: Response) => {
-    let settings = await Settings.findOne();
-    if (!settings) settings = await Settings.create({});
+    const device_id = (req.query.device_id as string) || "device0";
+    let settings = await Settings.findOne({ device_id });
+    if (!settings) settings = await Settings.create({ device_id });
     res.json(settings);
   })
   .post(authenticateToken, async (req: Request, res: Response) => {
-    const { temp_threshold, hum_threshold, light_threshold, retention_days } = req.body;
+    const { device_id = "device0", temp_threshold, hum_threshold, light_threshold, retention_days } = req.body;
 
-    let settings = await Settings.findOne();
-    if (!settings) settings = new Settings();
+    let settings = await Settings.findOne({ device_id });
+    if (!settings) {
+      settings = new Settings({ device_id });
+    }
 
     settings.temp_threshold = temp_threshold;
     settings.hum_threshold = hum_threshold;
@@ -32,6 +35,7 @@ router
       mqttClient.publish(
         "smartfarm/settings",
         JSON.stringify({
+          id: device_id,
           temp: temp_threshold,
           hum: hum_threshold,
           light: light_threshold,

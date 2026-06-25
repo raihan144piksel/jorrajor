@@ -13,7 +13,11 @@ import {
 } from "lucide-react";
 import { getTableData, getSettings } from "../services/api";
 
-const TelemetryTable: React.FC = () => {
+interface TelemetryTableProps {
+  selectedNode: string;
+}
+
+const TelemetryTable: React.FC<TelemetryTableProps> = ({ selectedNode }) => {
   const [currentData, setCurrentData] = useState<TelemetryData[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -22,16 +26,20 @@ const TelemetryTable: React.FC = () => {
   const rowsPerPage = 50;
 
   useEffect(() => {
-    getSettings().then(setThresholds).catch(console.error);
-  }, []);
+    setCurrentPage(1);
+  }, [selectedNode]);
 
   useEffect(() => {
-    getTableData(currentPage, rowsPerPage).then(res => {
+    getSettings(selectedNode).then(setThresholds).catch(console.error);
+  }, [selectedNode]);
+
+  useEffect(() => {
+    getTableData(currentPage, rowsPerPage, selectedNode).then(res => {
       setCurrentData(res.docs);
       setTotalPages(res.totalPages);
       setTotalRecords(res.total);
     }).catch(console.error);
-  }, [currentPage]);
+  }, [currentPage, selectedNode]);
 
   return (
     <div className="bg-slate-800 rounded-2xl shadow-xl overflow-hidden border border-slate-700">

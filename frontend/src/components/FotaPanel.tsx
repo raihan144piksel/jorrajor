@@ -5,9 +5,10 @@ import { uploadFirmware } from "../services/api";
 
 interface FotaPanelProps {
     otaStatus?: string | null;
+    selectedNode: string;
 }
 
-const FotaPanel: React.FC<FotaPanelProps> = ({ otaStatus }) => {
+const FotaPanel: React.FC<FotaPanelProps> = ({ otaStatus, selectedNode }) => {
     const [file, setFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -34,8 +35,8 @@ const FotaPanel: React.FC<FotaPanelProps> = ({ otaStatus }) => {
 
         setIsUploading(true);
         try {
-            await uploadFirmware(file);
-            toast.success("Firmware berhasil diunggah! ESP32 akan merestart otomatis setelah update selesai.", { duration: 5000 });
+            await uploadFirmware(file, selectedNode);
+            toast.success(`Firmware berhasil diunggah! ESP32 (${selectedNode}) akan merestart otomatis setelah update selesai.`, { duration: 5000 });
             setFile(null);
         } catch (err) {
             toast.error("Gagal mengunggah firmware. Pastikan backend server menyala.");

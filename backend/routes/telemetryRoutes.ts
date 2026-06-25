@@ -12,6 +12,7 @@ router.get(
     try {
       const rangeStr = (req.query.range as string) || "30m";
       const binStr = (req.query.bin as string) || "none";
+      const device_id = (req.query.device_id as string) || "device0";
 
       let msRange = 30 * 60 * 1000;
       if (rangeStr.endsWith("m")) msRange = parseInt(rangeStr) * 60 * 1000;
@@ -19,7 +20,7 @@ router.get(
       else if (rangeStr.endsWith("d")) msRange = parseInt(rangeStr) * 24 * 60 * 60 * 1000;
 
       let endTime = new Date();
-      const latestDoc = await Telemetry.findOne().sort({ timestamp: -1 }).lean();
+      const latestDoc = await Telemetry.findOne({ device_id }).sort({ timestamp: -1 }).lean();
       if (latestDoc) {
         const latestTime = new Date(latestDoc.timestamp);
         // If the latest data is older than 10 minutes, adjust the query end time
@@ -35,7 +36,7 @@ router.get(
       let result;
 
       if (binStr === "none") {
-        result = await Telemetry.find({ timestamp: { $gte: startTime, $lte: endTime } }).sort({ timestamp: 1 }).lean();
+        result = await Telemetry.find({ device_id, timestamp: { $gte: startTime, $lte: endTime } }).sort({ timestamp: 1 }).lean();
       } else {
         let binUnit = "minute";
         let binSize = 5;
@@ -52,7 +53,7 @@ router.get(
         }
 
         result = await Telemetry.aggregate([
-          { $match: { timestamp: { $gte: startTime, $lte: endTime } } },
+          { $match: { device_id, timestamp: { $gte: startTime, $lte: endTime } } },
           {
             $group: {
               _id: {
@@ -95,7 +96,7 @@ router.get(
       }
 
       if (result.length === 0) {
-        const fallbackData = await Telemetry.find().sort({ timestamp: -1 }).limit(20).lean();
+        const fallbackData = await Telemetry.find({ device_id }).sort({ timestamp: -1 }).limit(20).lean();
         result = fallbackData.reverse();
       }
 
@@ -114,11 +115,12 @@ router.get(
     try {
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 50;
+      const device_id = (req.query.device_id as string) || "device0";
       const skip = (page - 1) * limit;
 
       const [docs, total] = await Promise.all([
-        Telemetry.find().sort({ timestamp: -1 }).skip(skip).limit(limit).lean(),
-        Telemetry.estimatedDocumentCount()
+        Telemetry.find({ device_id }).sort({ timestamp: -1 }).skip(skip).limit(limit).lean(),
+        Telemetry.countDocuments({ device_id })
       ]);
 
       res.json({ docs, total, page, totalPages: Math.ceil(total / limit) });
@@ -133,14 +135,15 @@ router.get(
   authenticateToken,
   async (req: Request, res: Response): Promise<void> => {
     try {
+      const device_id = (req.query.device_id as string) || "device0";
       // Check if any data exists at all
-      const hasData = await Telemetry.exists({});
+      const hasData = await Telemetry.exists({ device_id });
       if (!hasData) {
         res.status(404).send("Data masih kosong, belum bisa download.");
         return;
       }
 
-      const fileName = `log_smartfarm_all_${new Date().toISOString().split("T")[0]}.csv`;
+      const fileName = `log_smartfarm_${device_id}_${new Date().toISOString().split("T")[0]}.csv`;
       res.header("Content-Type", "text/csv");
       res.attachment(fileName);
 
@@ -161,7 +164,7 @@ router.get(
       res.write(headers.join(",") + "\n");
 
       // Stream all data from MongoDB sorted by timestamp
-      const cursor = Telemetry.find().sort({ timestamp: 1 }).lean().cursor();
+      const cursor = Telemetry.find({ device_id }).sort({ timestamp: 1 }).lean().cursor();
 
       // Ensure cursor is closed if the request is aborted
       req.on("close", () => {
@@ -212,8 +215,9 @@ router.get(
   authenticateToken,
   async (req: Request, res: Response): Promise<void> => {
     try {
+      const device_id = (req.query.device_id as string) || "device0";
       let endTime = new Date();
-      const latestDoc = await Telemetry.findOne().sort({ timestamp: -1 }).lean();
+      const latestDoc = await Telemetry.findOne({ device_id }).sort({ timestamp: -1 }).lean();
       if (latestDoc) {
         const latestTime = new Date(latestDoc.timestamp);
         if (latestTime.getTime() < Date.now() - 10 * 60 * 1000) {
@@ -222,7 +226,7 @@ router.get(
       }
       const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
 
-      const filter = { timestamp: { $gte: startTime, $lte: endTime } };
+      const filter = { device_id, timestamp: { $gte: startTime, $lte: endTime } };
 
       const [statsResult, docTerendah, totalSemua] = await Promise.all([
         Telemetry.aggregate([
@@ -239,7 +243,7 @@ router.get(
         Telemetry.findOne(filter).sort({
           tanah: 1,
         }).lean(),
-        Telemetry.estimatedDocumentCount(), // Total data seluruh waktu
+        Telemetry.countDocuments({ device_id }), // Total data seluruh waktu
       ]);
 
       const stats = statsResult[0];
@@ -274,6 +278,23 @@ router.get(
       res.status(500).json({ error: "Gagal mengambil data analitik" });
     }
   },
+);
+
+router.get(
+  "/nodes",
+  authenticateToken,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const nodes = await Telemetry.distinct("device_id");
+      const cleanNodes = nodes.filter(n => n && n !== "UNKNOWN");
+      if (cleanNodes.length === 0) {
+        cleanNodes.push("device0");
+      }
+      res.json(cleanNodes);
+    } catch (err: unknown) {
+      res.status(500).json({ error: (err as Error).message });
+    }
+  }
 );
 
 router.get(

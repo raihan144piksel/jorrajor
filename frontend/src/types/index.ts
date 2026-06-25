@@ -22,6 +22,7 @@ export interface AnalyticsData {
 }
 
 export interface ThresholdSettings {
+  device_id?: string;
   temp_threshold: number;
   hum_threshold: number;
   light_threshold: number;

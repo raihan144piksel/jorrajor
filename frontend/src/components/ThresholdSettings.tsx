@@ -4,7 +4,11 @@ import toast from "react-hot-toast";
 import { getSettings, updateSettings } from "../services/api";
 import { ThresholdSettings as ThresholdSettingsType } from "../types";
 
-const ThresholdSettings: React.FC = () => {
+interface ThresholdSettingsProps {
+  selectedNode: string;
+}
+
+const ThresholdSettings: React.FC<ThresholdSettingsProps> = ({ selectedNode }) => {
     const [thresholds, setThresholds] = useState<ThresholdSettingsType>({
         temp_threshold: 30,
         hum_threshold: 40,
@@ -14,16 +18,16 @@ const ThresholdSettings: React.FC = () => {
     const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
-        getSettings()
+        getSettings(selectedNode)
             .then((res) => setThresholds(res))
             .catch(console.error);
-    }, []);
+    }, [selectedNode]);
 
     const handleUpdateThresholds = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsSaving(true);
         try {
-            await updateSettings(thresholds);
+            await updateSettings({ ...thresholds, device_id: selectedNode });
             toast.success("Pengaturan berhasil disimpan!");
         } catch (err) {
             toast.error("Gagal menyimpan pengaturan");
