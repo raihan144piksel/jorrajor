@@ -18,6 +18,15 @@ interface SidebarProps {
   onLogout: () => void;
 }
 
+/**
+ * Komponen Sidebar menampilkan menu navigasi samping untuk versi desktop dan bilah navigasi bawah untuk mobile.
+ * Mendukung fitur pelipatan (folding) menu demi menghemat ruang layar.
+ * 
+ * @param props - Properti komponen
+ * @param props.activeTab - Tab navigasi yang sedang aktif saat ini
+ * @param props.setActiveTab - Callback untuk mengubah tab navigasi yang aktif
+ * @param props.onLogout - Callback untuk menangani proses logout pengguna
+ */
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) => {
   const [isFolded, setIsFolded] = useState(false);
 

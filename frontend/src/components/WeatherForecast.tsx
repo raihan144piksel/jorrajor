@@ -63,6 +63,12 @@ const CACHE_DURATION = 60 * 60 * 1000; // 1 Jam
 // Fungsi: getWeatherIcon(code: number)
 // Deskripsi: Memetakan WMO Weather Codes (kode cuaca standar WMO) ke komponen ikon React Lucide.
 // ============================================================
+/**
+ * Memetakan kode cuaca WMO (World Meteorological Organization) ke komponen ikon React Lucide.
+ * 
+ * @param code - Kode cuaca dari API Open-Meteo
+ * @returns ReactNode berupa komponen ikon yang sesuai dengan kondisi cuaca
+ */
 const getWeatherIcon = (code: number) => {
   if (code === 0) return <Sun className="text-yellow-400" />;
   if (code <= 3) return <Cloud className="text-slate-400" />;
@@ -75,6 +81,10 @@ const getWeatherIcon = (code: number) => {
   return <Sun className="text-yellow-400" />;
 };
 
+/**
+ * Komponen WeatherForecast menampilkan informasi prakiraan cuaca 7 hari di lokasi greenhouse
+ * menggunakan API Open-Meteo dan memplot datanya ke dalam berbagai grafik (atmosfer, lingkungan, tekanan).
+ */
 const WeatherForecast: React.FC = () => {
   const [coords, setCoords] = useState<Coords>(() => {
     const saved = localStorage.getItem("weather_coords");
@@ -202,6 +212,9 @@ const WeatherForecast: React.FC = () => {
   // Fungsi: handleManualRefresh()
   // Deskripsi: Memaksa pembaruan data cuaca dari API secara instan (mengabaikan cache).
   // ============================================================
+  /**
+   * Memicu pengambilan ulang data cuaca dari API secara manual dengan menaikkan nilai refresh trigger.
+   */
   const handleManualRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
   };
@@ -210,6 +223,9 @@ const WeatherForecast: React.FC = () => {
   // Fungsi: applyNewCoords()
   // Deskripsi: Menerapkan koordinat baru yang diinput secara manual oleh user.
   // ============================================================
+  /**
+   * Menerapkan koordinat latitude/longitude baru dari input form draft dan memicu refresh data cuaca.
+   */
   const applyNewCoords = () => {
     setCoords(draftCoords);
     setShowSettings(false);
@@ -220,6 +236,9 @@ const WeatherForecast: React.FC = () => {
   // Fungsi: handleUseCurrentLocation()
   // Deskripsi: Meminta izin akses lokasi GPS browser (Geolocation API) untuk mendapatkan koordinat user.
   // ============================================================
+  /**
+   * Mengambil lokasi GPS pengguna saat ini via browser Geolocation API, menyimpannya, dan memicu refresh.
+   */
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((pos) => {
@@ -242,6 +261,10 @@ const WeatherForecast: React.FC = () => {
   // Fungsi: tooltipFormatter()
   // Deskripsi: Memformat tampilan label & satuan pada tooltip grafik interaktif (Recharts).
   // ============================================================
+  /**
+   * Helper Recharts Tooltip untuk memformat nilai dan nama parameter cuaca (suhu, kelembapan, angin, dll)
+   * agar tampil dengan satuan yang sesuai di tooltip grafik.
+   */
   const tooltipFormatter = useCallback((value: unknown, name: unknown): [React.ReactNode, string] => {
     const val = Number(value || 0);
     const nameStr = String(name || "");

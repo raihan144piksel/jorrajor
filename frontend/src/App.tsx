@@ -6,6 +6,13 @@ import { Toaster } from "react-hot-toast";
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 
+/**
+ * Mengecek apakah JWT Token sudah kedaluwarsa atau tidak valid.
+ * Mengurai payload Base64 secara manual tanpa dependensi eksternal.
+ * 
+ * @param token - String token JWT dari localstorage
+ * @returns boolean - True jika token habis masa berlakunya atau error saat parsing, false jika masih aktif
+ */
 const isTokenExpired = (token: string | null): boolean => {
   if (!token) return true;
   try {
@@ -34,6 +41,10 @@ const isTokenExpired = (token: string | null): boolean => {
   }
 };
 
+/**
+ * Wrapper komponen untuk memproteksi rute yang memerlukan autentikasi.
+ * Jika pengguna belum masuk (tidak memiliki token valid), otomatis dialihkan ke halaman login.
+ */
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem("app_token");
   if (!token || isTokenExpired(token)) {
@@ -44,6 +55,11 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 // KOMPONEN PENGALIH: Mencegah masuk ke Login jika SUDAH login
+/**
+ * Wrapper komponen rute publik (seperti halaman login).
+ * Mencegah pengguna yang sudah memiliki sesi login aktif untuk mengakses halaman tersebut,
+ * dan mengalihkan mereka kembali ke dashboard.
+ */
 const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   const token = localStorage.getItem("app_token");
   if (token && isTokenExpired(token)) {
@@ -53,6 +69,10 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   return token ? <Navigate to="/dashboard" replace /> : <>{children}</>;
 };
 
+/**
+ * Komponen utama App yang mengatur Router, Suspense (lazy loading), Toaster notifications,
+ * dan struktur rute (routing) seluruh aplikasi.
+ */
 function App() {
   return (
     <>

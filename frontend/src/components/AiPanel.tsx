@@ -10,11 +10,24 @@ interface AiPanelProps {
   onThresholdsChange: (newThresholds: any) => void;
 }
 
+/**
+ * Komponen AiPanel menyediakan antarmuka percakapan (chat assistant) dengan kecerdasan buatan (Gemini).
+ * Komponen ini terhubung ke backend untuk mengirim input pengguna dan menerima respon dari model AI.
+ *
+ * @param props - Properti komponen
+ * @param props.selectedNode - ID node sensor perangkat yang sedang aktif
+ * @param props.messages - Riwayat percakapan saat ini
+ * @param props.setMessages - State setter untuk memperbarui daftar pesan
+ * @param props.onThresholdsChange - Callback untuk memperbarui ambang batas (thresholds) jika diubah oleh AI
+ */
 const AiPanel: React.FC<AiPanelProps> = ({ selectedNode, messages, setMessages, onThresholdsChange }) => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  /**
+   * Menggulirkan otomatis daftar pesan ke bagian paling bawah.
+   */
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -23,6 +36,11 @@ const AiPanel: React.FC<AiPanelProps> = ({ selectedNode, messages, setMessages, 
     scrollToBottom();
   }, [messages]);
 
+  /**
+   * Mengirimkan pesan teks ke backend untuk diproses oleh AI dan menampilkan hasilnya.
+   *
+   * @param textToSend - Pesan teks yang diinput pengguna
+   */
   const handleSend = async (textToSend: string) => {
     if (!textToSend.trim() || isLoading) return;
 
@@ -57,10 +75,18 @@ const AiPanel: React.FC<AiPanelProps> = ({ selectedNode, messages, setMessages, 
     }
   };
 
+  /**
+   * Menangani klik pada pill saran pertanyaan untuk langsung mengirimkannya ke AI.
+   *
+   * @param suggestion - Teks saran pertanyaan
+   */
   const handleSuggestClick = (suggestion: string) => {
     handleSend(suggestion);
   };
 
+  /**
+   * Mereset atau membersihkan riwayat obrolan kembali ke pesan pembuka bawaan.
+   */
   const clearChat = () => {
     setMessages([
       {
@@ -71,6 +97,13 @@ const AiPanel: React.FC<AiPanelProps> = ({ selectedNode, messages, setMessages, 
   };
 
   // Helper to parse simple markdown bold, lists, and newlines
+  /**
+   * Helper untuk mengurai formatting markdown sederhana (teks tebal dan bullet list)
+   * serta mengubah newline menjadi tag break line HTML secara aman.
+   *
+   * @param text - Teks mentah dengan markup markdown
+   * @returns React element yang sudah terformat
+   */
   const renderMessageText = (text: string) => {
     // Escape HTML first to prevent XSS
     let html = text

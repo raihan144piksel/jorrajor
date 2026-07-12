@@ -14,7 +14,7 @@ float cahaya   = 0;
 
 float suhuThreshold   = 30.0;
 float soilThreshold   = 40.0;
-float cahayaThreshold = 50.0;
+float cahayaThreshold = 20.0;
 
 int overrideKipas = 0;
 int overridePompa = 0;
@@ -26,9 +26,25 @@ char otaTargetUrl[256] = "";
 bool pendingPublish = false;
 bool pendingPreferencesSave = false;
 
-// Condition checkers for Relay entities
+// ============================================================
+// Fungsi: checkKipas()
+// Deskripsi: Memeriksa apakah suhu lingkungan melebihi ambang batas (suhuThreshold).
+// Return: true jika suhu > suhuThreshold, sebaliknya false.
+// ============================================================
 bool checkKipas() { return suhu > suhuThreshold; }
+
+// ============================================================
+// Fungsi: checkPompa()
+// Deskripsi: Memeriksa apakah kelembapan tanah berada di bawah ambang batas (soilThreshold).
+// Return: true jika kelembapan tanah < soilThreshold, sebaliknya false.
+// ============================================================
 bool checkPompa() { return tanah < soilThreshold; }
+
+// ============================================================
+// Fungsi: checkLampu()
+// Deskripsi: Memeriksa apakah intensitas cahaya berada di bawah ambang batas (cahayaThreshold).
+// Return: true jika cahaya < cahayaThreshold, sebaliknya false.
+// ============================================================
 bool checkLampu() { return cahaya < cahayaThreshold; }
 
 // Contiguous Array of Relay Entities (Data-Oriented Design)
@@ -50,6 +66,12 @@ WiFiClientSecure espClient;
 PubSubClient mqttClient(espClient);
 Preferences preferences;
 
+// ============================================================
+// Fungsi: setup()
+// Deskripsi: Fungsi inisialisasi awal sistem yang dijalankan sekali saat ESP32 pertama kali menyala.
+//            Menginisialisasi komunikasi Serial, memuat konfigurasi ambang batas dari NVS,
+//            mengatur pin-mode relay, serta menginisialisasi WiFi, sensor, dan MQTT client.
+// ============================================================
 void setup() {
   Serial.begin(115200);
   delay(500);
@@ -79,6 +101,12 @@ void setup() {
   Serial.println("[System] Siap!\n");
 }
 
+// ============================================================
+// Fungsi: loop()
+// Deskripsi: Fungsi utama yang berjalan terus-menerus (looping) setelah setup().
+//            Bertanggung jawab untuk menjaga koneksi WiFi/MQTT, memproses pembacaan sensor,
+//            menjalankan state machine relay, dan memicu pengiriman data telemetri secara berkala.
+// ============================================================
 void loop() {
   // 1. Process asynchronous network handlers
   jagaWiFi();

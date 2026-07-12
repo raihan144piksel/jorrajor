@@ -3,6 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { login } from "../services/api";
 import greenhouseIcon from "../assets/greenhouse-svgrepo-com.svg";
 
+/**
+ * Komponen LoginPage merender halaman login pengguna untuk sistem kontrol ZENITH Smart Farm.
+ * Menangani otentikasi username dan password, menyimpan token JWT ke localStorage, dan mengarahkan ke dashboard.
+ */
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -10,6 +14,11 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  /**
+   * Menangani submit form login untuk autentikasi ke backend API.
+   * 
+   * @param e - Event submit form React
+   */
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);

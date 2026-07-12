@@ -89,7 +89,14 @@ extern WiFiClientSecure espClient;
 extern PubSubClient mqttClient;
 extern Preferences preferences;
 
-// Zero-heap string utility helper
+// ============================================================
+// Fungsi: toLowercase(const char* src, char* dest, size_t destSize)
+// Deskripsi: Mengubah string sumber menjadi huruf kecil semua secara manual (zero-heap)
+// Parameter:
+//   - src: Pointer ke string sumber (input)
+//   - dest: Pointer ke buffer tujuan (output)
+//   - destSize: Ukuran maksimal buffer tujuan
+// ============================================================
 void toLowercase(const char* src, char* dest, size_t destSize);
 
 #endif

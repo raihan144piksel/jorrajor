@@ -8,6 +8,14 @@ interface ActuatorGridProps {
     onControl: (device: string, mode: number) => void;
 }
 
+/**
+ * Komponen ActuatorGrid menampilkan grid kartu aktuator (Kipas, Pompa, Lampu).
+ * 
+ * @param props - Properti komponen
+ * @param props.data - Data telemetri saat ini yang mencakup status aktuator
+ * @param props.thresholds - Nilai batas (threshold) sensor untuk mode otomatis
+ * @param props.onControl - Callback handler saat mengubah mode kontrol aktuator
+ */
 const ActuatorGrid: React.FC<ActuatorGridProps> = ({ data, thresholds, onControl }) => {
 
     return (
@@ -65,6 +73,21 @@ interface ActuatorCardProps {
     threshold?: string;
 }
 
+/**
+ * Komponen ActuatorCard menampilkan kartu status dan kontrol individu untuk satu aktuator.
+ * 
+ * @param props - Properti komponen
+ * @param props.title - Judul nama aktuator (contoh: "Kipas Pendingin")
+ * @param props.device - Identifier perangkat/aktuator (contoh: "kipas")
+ * @param props.icon - Ikon Lucide untuk dirender
+ * @param props.status - Status aktif/mati saat ini (true = ON, false = OFF)
+ * @param props.state - Mode operasi saat ini (AUTO atau MANUAL)
+ * @param props.color - Kelas border CSS kartu
+ * @param props.iconColor - Kelas warna CSS untuk ikon
+ * @param props.activeBg - Kelas warna latar belakang CSS saat aktif
+ * @param props.onControl - Callback handler untuk memicu perintah kontrol
+ * @param props.threshold - Informasi teks threshold mode auto
+ */
 const ActuatorCard: React.FC<ActuatorCardProps> = ({ title, device, icon, status, state, color, iconColor, activeBg, onControl, threshold }) => {
     const isManual = state === "MANUAL";
     const currentMode = isManual ? (status ? 1 : 2) : 0;

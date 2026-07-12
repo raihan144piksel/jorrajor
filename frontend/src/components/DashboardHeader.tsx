@@ -12,7 +12,22 @@ interface DashboardHeaderProps {
     setSelectedNode: (node: string) => void;
 }
 
+/**
+ * Komponen DashboardHeader menampilkan header aplikasi Dashboard Smart Farm.
+ * Berisi dropdown pemilihan node, status server, status perangkat keras, serta tombol ekspor CSV dan logout.
+ * 
+ * @param props - Properti komponen
+ * @param props.isOnline - Status koneksi server web socket / backend API
+ * @param props.isEspOnline - Status keaktifan perangkat keras ESP32
+ * @param props.onLogout - Callback function untuk menangani logout pengguna
+ * @param props.nodes - Daftar semua ID node sensor yang terdaftar
+ * @param props.selectedNode - ID node sensor yang terpilih saat ini
+ * @param props.setSelectedNode - Setter state untuk mengubah node terpilih
+ */
 const DashboardHeader: React.FC<DashboardHeaderProps> = ({ isOnline, isEspOnline, onLogout, nodes, selectedNode, setSelectedNode }) => {
+    /**
+     * Membuka tab baru untuk mengunduh log telemetri dalam format CSV dari backend.
+     */
     const getDownloadUrl = () => {
         const token = localStorage.getItem("app_token");
         const url = `${backendUrl}/api/telemetry/download?token=${token}`;

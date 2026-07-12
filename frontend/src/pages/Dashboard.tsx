@@ -17,6 +17,11 @@ import AiPanel from "../components/AiPanel";
 import toast from "react-hot-toast";
 import { Shield, User, Globe, RefreshCw, Download, ShieldCheck, ShieldAlert, Wifi, Cpu } from "lucide-react";
 
+/**
+ * Komponen Dashboard merender halaman dashboard utama ZENITH Smart Farm.
+ * Mengintegrasikan navigasi sidebar, visualisasi data real-time, grafik tren analitis, kontrol manual aktuator,
+ * pengaturan threshold otomatisasi, panel asisten AI Gemini, dan log riwayat login/perangkat.
+ */
 const Dashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [loginLogs, setLoginLogs] = useState<LoginLogData[]>([]);
@@ -66,6 +71,9 @@ const Dashboard: React.FC = () => {
     selectedNodeRef.current = selectedNode;
   }, [selectedNode]);
 
+  /**
+   * Menghapus token dari localStorage, memutus koneksi websocket, dan mengarahkan kembali ke halaman login.
+   */
   const handleLogout = () => {
     localStorage.removeItem("app_token");
     socketRef.current?.disconnect();
@@ -73,6 +81,9 @@ const Dashboard: React.FC = () => {
     navigate("/login");
   };
 
+  /**
+   * Mengambil ulang data statistik analitik terbaru dan memperbarui daftar node aktif dari API.
+   */
   const refreshStats = () => {
     getAnalytics(selectedNode)
       .then((res) => setAnalytics(res))
@@ -142,6 +153,9 @@ const Dashboard: React.FC = () => {
   }, [activeTab, analyticsRange, selectedNode]);
 
   // Fetch Login Logs on tab change
+  /**
+   * Mengambil data log percobaan masuk (login logs) dari server backend.
+   */
   const fetchLogs = () => {
     setIsLoadingLogs(true);
     getLoginLogs()
@@ -157,6 +171,9 @@ const Dashboard: React.FC = () => {
       });
   };
 
+  /**
+   * Mengambil data log koneksi online/offline ESP32 dari server backend.
+   */
   const fetchDeviceLogs = () => {
     setIsLoadingDeviceLogs(true);
     getDeviceLogs()
@@ -172,6 +189,9 @@ const Dashboard: React.FC = () => {
       });
   };
 
+  /**
+   * Mengekspor log aktivitas login pengguna saat ini ke file CSV dan mengunduhnya di browser.
+   */
   const exportLoginLogs = () => {
     if (loginLogs.length === 0) {
       toast.error("Tidak ada data untuk diekspor");
@@ -208,6 +228,9 @@ const Dashboard: React.FC = () => {
     toast.success("Berhasil mengekspor log login");
   };
 
+  /**
+   * Mengekspor log status koneksi ESP32 saat ini ke file CSV dan mengunduhnya di browser.
+   */
   const exportDeviceLogs = () => {
     if (deviceLogs.length === 0) {
       toast.error("Tidak ada data untuk diekspor");
@@ -321,6 +344,12 @@ const Dashboard: React.FC = () => {
     };
   }, []);
 
+  /**
+   * Mengirimkan perintah kontrol aktuator (kipas, pompa, lampu) ke backend.
+   * 
+   * @param device - Jenis aktuator yang ingin dikontrol
+   * @param mode - Mode kontrol (0 = Auto, 1 = Manual ON, 2 = Manual OFF)
+   */
   const handleControl = async (device: string, mode: number) => {
     try {
       await sendControl(device, mode, selectedNode);
@@ -329,6 +358,9 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  /**
+   * Merender konten dinamis dashboard berdasarkan tab menu navigasi samping yang sedang aktif.
+   */
   const renderContent = () => {
     switch (activeTab) {
       case "overview":

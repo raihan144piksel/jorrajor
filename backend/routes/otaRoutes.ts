@@ -34,7 +34,15 @@ if (!fs.existsSync(uploadDir)) {
 
 // Konfigurasi Multer untuk menangani penyimpanan file biner
 const storage = multer.diskStorage({
+  // ============================================================
+  // Fungsi: destination()
+  // Deskripsi: Menentukan direktori penyimpanan biner firmware.
+  // ============================================================
   destination: (req, file, cb) => cb(null, uploadDir),
+  // ============================================================
+  // Fungsi: filename()
+  // Deskripsi: Menentukan nama file biner firmware yang disimpan (selalu 'firmware.bin').
+  // ============================================================
   filename: (req, file, cb) => cb(null, "firmware.bin"), // Nama file dikunci 'firmware.bin'
 });
 

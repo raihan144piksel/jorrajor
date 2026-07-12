@@ -10,6 +10,15 @@ interface ThresholdSettingsProps {
   onThresholdsChange: (newThresholds: ThresholdSettingsType) => void;
 }
 
+/**
+ * Komponen ThresholdSettings mengelola form konfigurasi ambang batas (thresholds) otomatisasi alat
+ * (kipas pendingin, pompa air, lampu UV) dan masa retensi log data server.
+ * 
+ * @param props - Properti komponen
+ * @param props.selectedNode - ID node sensor terpilih yang sedang dikonfigurasi
+ * @param props.thresholds - Objek data ambang batas saat ini
+ * @param props.onThresholdsChange - Callback untuk memperbarui ambang batas pada state parent setelah tersimpan
+ */
 const ThresholdSettings: React.FC<ThresholdSettingsProps> = ({ selectedNode, thresholds, onThresholdsChange }) => {
     const [formThresholds, setFormThresholds] = useState<ThresholdSettingsType>({
         temp_threshold: 30,
@@ -25,6 +34,11 @@ const ThresholdSettings: React.FC<ThresholdSettingsProps> = ({ selectedNode, thr
         }
     }, [thresholds]);
 
+    /**
+     * Mengirimkan perubahan pengaturan ambang batas yang baru ke server backend.
+     * 
+     * @param e - Event submit form React
+     */
     const handleUpdateThresholds = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setIsSaving(true);

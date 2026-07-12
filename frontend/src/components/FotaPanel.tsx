@@ -8,6 +8,14 @@ interface FotaPanelProps {
     selectedNode: string;
 }
 
+/**
+ * Komponen FotaPanel mengelola proses pembaruan firmware nirkabel (Firmware Over The Air - FOTA).
+ * Memungkinkan pengguna mengunggah file biner firmware (.bin) dan melihat status flashing real-time dari ESP32.
+ * 
+ * @param props - Properti komponen
+ * @param props.otaStatus - Status pembaruan OTA saat ini dari socket
+ * @param props.selectedNode - ID node sensor target yang ingin diupdate
+ */
 const FotaPanel: React.FC<FotaPanelProps> = ({ otaStatus, selectedNode }) => {
     const [file, setFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -20,12 +28,20 @@ const FotaPanel: React.FC<FotaPanelProps> = ({ otaStatus, selectedNode }) => {
         }
     }, [otaStatus]);
 
+    /**
+     * Menangani perubahan input file ketika user memilih file biner firmware baru.
+     * 
+     * @param e - Event perubahan input file React
+     */
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             setFile(e.target.files[0]);
         }
     };
 
+    /**
+     * Melakukan pengunggahan file firmware biner terpilih ke server backend untuk diproses flashing ke ESP32.
+     */
     const handleUpload = async () => {
         if (!file) return;
         if (!file.name.endsWith(".bin")) {

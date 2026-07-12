@@ -10,6 +10,18 @@ interface SensorCardProps {
     iconColor: string;
 }
 
+/**
+ * Komponen SensorCard menampilkan informasi data sensor tunggal (seperti suhu atau kelembapan)
+ * dengan visualisasi ikon dan warna aksen tertentu.
+ * 
+ * @param props - Properti komponen
+ * @param props.title - Nama sensor (contoh: "Suhu Udara")
+ * @param props.value - Nilai data sensor saat ini
+ * @param props.unit - Satuan ukur sensor (contoh: "°C", "%")
+ * @param props.icon - Komponen ikon Lucide untuk dirender
+ * @param props.color - Kelas warna border CSS
+ * @param props.iconColor - Kelas warna CSS untuk ikon
+ */
 const SensorCard: React.FC<SensorCardProps> = ({
     title,
     value,

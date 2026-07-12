@@ -18,6 +18,14 @@ interface TelemetryTableProps {
   thresholds: ThresholdSettings | null;
 }
 
+/**
+ * Komponen TelemetryTable menampilkan data log sensor historis dalam format tabel ter-paginasi.
+ * Menandai nilai sensor yang melampaui ambang batas (threshold) dengan indikasi warna visual.
+ * 
+ * @param props - Properti komponen
+ * @param props.selectedNode - ID node sensor yang sedang aktif saat ini
+ * @param props.thresholds - Nilai ambang batas sensor untuk indikator peringatan
+ */
 const TelemetryTable: React.FC<TelemetryTableProps> = ({ selectedNode, thresholds }) => {
   const [currentData, setCurrentData] = useState<TelemetryData[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -197,6 +205,10 @@ const TelemetryTable: React.FC<TelemetryTableProps> = ({ selectedNode, threshold
   );
 };
 
+/**
+ * Komponen pembantu StatusIcon untuk merender ikon status aktuator individu (Kipas, Pompa, Lampu)
+ * beserta badge penanda mode operasi AUTO (A) atau MANUAL (M) dan tooltip.
+ */
 const StatusIcon = ({ 
   icon, 
   active, 

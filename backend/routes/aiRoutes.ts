@@ -8,6 +8,14 @@ import { getMqttClient } from "../services/mqttService.js";
 
 const router = express.Router();
 
+// ============================================================
+// Endpoint: POST /api/ai/chat
+// Deskripsi: Memproses permintaan percakapan/chat dari pengguna.
+//            Mengambil data telemetri real-time dan konfigurasi threshold
+//            sebagai konteks (system instruction), lalu berinteraksi dengan
+//            Gemini AI API. Mendukung pemanggilan fungsi (Function Calling)
+//            untuk mengontrol aktuator atau mengubah threshold secara otomatis.
+// ============================================================
 router.post("/chat", authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {
     const { message, device_id = "device0", history = [] } = req.body;

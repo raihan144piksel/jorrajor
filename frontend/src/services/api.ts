@@ -42,10 +42,14 @@ apiClient.interceptors.response.use(
   },
 );
 
-// ============================================================
-// Fungsi: getTelemetry(range, bin, device_id)
-// Deskripsi: Mengambil data telemetri sensor (suhu, kelembapan, dll) untuk keperluan grafik.
-// ============================================================
+/**
+ * Mengambil data telemetri sensor (suhu, kelembapan, dll) untuk keperluan grafik.
+ * 
+ * @param range - Rentang waktu data
+ * @param bin - Interval agregasi binning data
+ * @param device_id - ID node sensor perangkat target
+ * @returns Promise berisi array TelemetryData
+ */
 export const getTelemetry = async (
   range = "30m",
   bin = "none",
@@ -64,10 +68,14 @@ export interface TableResponse {
   totalPages: number;
 }
 
-// ============================================================
-// Fungsi: getTableData(page, limit, device_id)
-// Deskripsi: Mengambil data telemetri ter-paginasi (per halaman) untuk mempopulasi tabel riwayat.
-// ============================================================
+/**
+ * Mengambil data telemetri ter-paginasi (per halaman) untuk mempopulasi tabel riwayat.
+ * 
+ * @param page - Nomor halaman saat ini
+ * @param limit - Jumlah baris data per halaman
+ * @param device_id - ID node sensor perangkat target
+ * @returns Promise berisi TableResponse
+ */
 export const getTableData = async (
   page = 1,
   limit = 50,
@@ -79,10 +87,12 @@ export const getTableData = async (
   return response.data;
 };
 
-// ============================================================
-// Fungsi: getAnalytics(device_id)
-// Deskripsi: Mengambil data ringkasan analitik (suhu rata-rata, min/max, kelembapan tanah terendah).
-// ============================================================
+/**
+ * Mengambil data ringkasan analitik (suhu rata-rata, min/max, kelembapan tanah terendah).
+ * 
+ * @param device_id - ID node sensor perangkat target
+ * @returns Promise berisi AnalyticsData
+ */
 export const getAnalytics = async (device_id = "device0"): Promise<AnalyticsData> => {
   const response = await apiClient.get<AnalyticsData>("/telemetry/analytics", {
     params: { device_id },
@@ -90,10 +100,14 @@ export const getAnalytics = async (device_id = "device0"): Promise<AnalyticsData
   return response.data;
 };
 
-// ============================================================
-// Fungsi: sendControl(device, status, device_id)
-// Deskripsi: Mengirimkan perintah override manual aktuator (kipas/pompa/lampu) ke backend.
-// ============================================================
+/**
+ * Mengirimkan perintah override manual aktuator (kipas/pompa/lampu) ke backend.
+ * 
+ * @param device - Jenis aktuator (contoh: "kipas")
+ * @param status - Status target aktuator (boolean atau angka)
+ * @param device_id - ID node sensor perangkat target
+ * @returns Promise berisi objek respon pesan dari backend
+ */
 export const sendControl = async (
   device: string,
   status: boolean | number,
@@ -103,11 +117,14 @@ export const sendControl = async (
   return response.data;
 };
 
-// ============================================================
-// Fungsi: uploadFirmware(file, device_id)
-// Deskripsi: Mengunggah file biner firmware (.bin) baru untuk proses FOTA (nirkabel)
-//            dan mengirimkan informasi target node ESP32.
-// ============================================================
+/**
+ * Mengunggah file biner firmware (.bin) baru untuk proses FOTA (nirkabel)
+ * dan mengirimkan informasi target node ESP32.
+ * 
+ * @param file - Objek file firmware (.bin)
+ * @param device_id - ID node sensor target upgrade
+ * @returns Promise berisi objek respon dari backend
+ */
 export const uploadFirmware = async (
   file: File,
   device_id = "device0",
@@ -135,10 +152,13 @@ export const uploadFirmware = async (
   return response.json();
 };
 
-// ============================================================
-// Fungsi: login(username, password)
-// Deskripsi: Memproses permintaan autentikasi login pengguna.
-// ============================================================
+/**
+ * Memproses permintaan autentikasi login pengguna.
+ * 
+ * @param username - Username akun pengguna
+ * @param password - Password akun pengguna
+ * @returns Promise berisi objek token JWT
+ */
 export const login = async (
   username: string,
   password: string,
@@ -150,10 +170,11 @@ export const login = async (
   return response.data;
 };
 
-// ============================================================
-// Fungsi: getDownloadUrl(device_id)
-// Deskripsi: Mengunduh data log sensor mentah ke file CSV dan men-trigger proses download di browser.
-// ============================================================
+/**
+ * Mengunduh data log sensor mentah ke file CSV dan men-trigger proses download di browser.
+ * 
+ * @param device_id - ID node sensor perangkat target
+ */
 export const getDownloadUrl = async (device_id = "device0"): Promise<void> => {
   const response = await apiClient.get("/telemetry/download", {
     params: { device_id },
@@ -172,10 +193,12 @@ export const getDownloadUrl = async (device_id = "device0"): Promise<void> => {
   window.URL.revokeObjectURL(url);
 };
 
-// ============================================================
-// Fungsi: getSettings(device_id)
-// Deskripsi: Mengambil data threshold suhu, tanah, cahaya untuk suatu node ESP32.
-// ============================================================
+/**
+ * Mengambil data threshold suhu, tanah, cahaya untuk suatu node ESP32.
+ * 
+ * @param device_id - ID node sensor perangkat target
+ * @returns Promise berisi ThresholdSettings
+ */
 export const getSettings = async (device_id = "device0"): Promise<ThresholdSettings> => {
   const response = await apiClient.get<ThresholdSettings>("/settings", {
     params: { device_id },
@@ -183,10 +206,12 @@ export const getSettings = async (device_id = "device0"): Promise<ThresholdSetti
   return response.data;
 };
 
-// ============================================================
-// Fungsi: updateSettings(settings)
-// Deskripsi: Mengubah nilai threshold baru di backend untuk diperbarui ke database & alat.
-// ============================================================
+/**
+ * Mengubah nilai threshold baru di backend untuk diperbarui ke database & alat.
+ * 
+ * @param settings - Pengaturan threshold yang akan diperbarui
+ * @returns Promise berisi objek respon dari backend
+ */
 export const updateSettings = async (
   settings: Partial<ThresholdSettings> & { device_id?: string },
 ): Promise<{ message: string }> => {
@@ -197,28 +222,31 @@ export const updateSettings = async (
   return response.data;
 };
 
-// ============================================================
-// Fungsi: getLoginLogs()
-// Deskripsi: Mengambil riwayat data log login aktivitas masuk user.
-// ============================================================
+/**
+ * Mengambil riwayat data log login aktivitas masuk user.
+ * 
+ * @returns Promise berisi array LoginLogData
+ */
 export const getLoginLogs = async (): Promise<LoginLogData[]> => {
   const response = await apiClient.get<LoginLogData[]>("/login-logs");
   return response.data;
 };
 
-// ============================================================
-// Fungsi: getDeviceLogs()
-// Deskripsi: Mengambil riwayat status koneksi online/offline perangkat keras ESP32.
-// ============================================================
+/**
+ * Mengambil riwayat status koneksi online/offline perangkat keras ESP32.
+ * 
+ * @returns Promise berisi array DeviceLogData
+ */
 export const getDeviceLogs = async (): Promise<DeviceLogData[]> => {
   const response = await apiClient.get<DeviceLogData[]>("/telemetry/device-logs");
   return response.data;
 };
 
-// ============================================================
-// Fungsi: getNodes()
-// Deskripsi: Mengambil daftar semua nama node sensor (device_id) yang aktif terdaftar.
-// ============================================================
+/**
+ * Mengambil daftar semua nama node sensor (device_id) yang aktif terdaftar.
+ * 
+ * @returns Promise berisi array string ID node
+ */
 export const getNodes = async (): Promise<string[]> => {
   const response = await apiClient.get<string[]>("/telemetry/nodes");
   return response.data;
@@ -235,6 +263,14 @@ export interface ChatResponse {
   thresholds?: any;
 }
 
+/**
+ * Mengirim pesan teks obrolan pengguna dan riwayat chat ke backend AI (Gemini).
+ * 
+ * @param message - Pesan dari user
+ * @param device_id - ID node sensor perangkat yang sedang aktif
+ * @param history - Riwayat percakapan sebelumnya
+ * @returns Promise berisi ChatResponse dari AI
+ */
 export const chatWithAI = async (
   message: string,
   device_id = "device0",

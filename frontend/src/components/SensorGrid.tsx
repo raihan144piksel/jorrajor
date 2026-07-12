@@ -7,6 +7,13 @@ interface SensorGridProps {
     data: TelemetryData;
 }
 
+/**
+ * Komponen SensorGrid merender grid dari kartu-kartu sensor untuk menampilkan 
+ * semua data telemetri (Suhu Udara, Kelembapan Udara, Kelembapan Tanah, dan Intensitas Cahaya).
+ * 
+ * @param props - Properti komponen
+ * @param props.data - Objek data telemetri saat ini
+ */
 const SensorGrid: React.FC<SensorGridProps> = ({ data }) => {
     return (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

@@ -8,6 +8,17 @@ interface StatusBadgeProps {
     pulse?: boolean;
 }
 
+/**
+ * Komponen StatusBadge menampilkan badge penanda status (seperti ONLINE/OFFLINE)
+ * dengan indikator titik berkedip (pulse) opsional dan warna dinamis berdasarkan status.
+ * 
+ * @param props - Properti komponen
+ * @param props.label - Label di atas badge (contoh: "Server Status")
+ * @param props.status - Status aktif/mati (true = Aktif/Online, false = OFFLINE)
+ * @param props.activeText - Teks status saat aktif (contoh: "CONNECTED")
+ * @param props.activeColor - Tema warna badge saat aktif
+ * @param props.pulse - Apakah titik indikator berdenyut/berkedip saat aktif
+ */
 const StatusBadge: React.FC<StatusBadgeProps> = ({ label, status, activeText, activeColor, pulse = false }) => {
     const themes = {
         green: 'bg-green-500/10 text-green-400',

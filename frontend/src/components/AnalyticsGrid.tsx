@@ -6,6 +6,13 @@ interface AnalyticsGridProps {
   analytics: AnalyticsData | null;
 }
 
+/**
+ * Komponen AnalyticsGrid menampilkan rangkuman data statistik penting (suhu rata-rata,
+ * titik suhu ekstrem, tingkat kelembapan tanah paling kering, dan total data telemetry).
+ * 
+ * @param props - Properti komponen
+ * @param props.analytics - Data analitik yang diterima dari backend
+ */
 const AnalyticsGrid: React.FC<AnalyticsGridProps> = ({ analytics }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -6,6 +6,13 @@ export interface AuthRequest extends Request {
   user?: string | jwt.JwtPayload | undefined;
 }
 
+// ============================================================
+// Fungsi: authenticateToken()
+// Deskripsi: Middleware untuk memvalidasi token JWT pada header Authorization
+//            atau query parameter. Jika token valid, informasi user disimpan 
+//            ke dalam request object (req.user) dan melanjutkan ke handler berikutnya.
+//            Jika tidak valid atau hilang, mengembalikan status 401 atau 403.
+// ============================================================
 export const authenticateToken = (
   req: AuthRequest,
   res: Response,
@@ -20,6 +27,7 @@ export const authenticateToken = (
     return;
   }
 
+  // Melakukan verifikasi token JWT secara asinkron
   jwt.verify(token, ENV.JWT_SECRET, (err, user) => {
     if (err) {
       res.status(403).json({ message: "Token tidak valid!" });

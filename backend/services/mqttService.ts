@@ -53,17 +53,32 @@ export const initMqtt = (io: Server): void => {
     password: ENV.MQTT_PASS,
   });
 
+  // ============================================================
+  // Event Callback: mqttClient.on("error")
+  // Deskripsi: Menangani error koneksi ke MQTT broker dan mencetaknya ke konsol.
+  // ============================================================
   mqttClient.on("error", (err) => {
     console.error("❌ MQTT Connection Error:", err.message);
   });
 
+  // ============================================================
+  // Event Callback: mqttClient.on("connect")
+  // Deskripsi: Callback saat berhasil terhubung ke MQTT broker.
+  //            Melakukan subscribe ke topik telemetri ESP32.
+  // ============================================================
   mqttClient.on("connect", () => {
     console.log("✅ Connected to HiveMQ");
     // Berlangganan (subscribe) ke topik telemetri ESP32
     mqttClient?.subscribe("smartfarm/telemetry");
   });
 
-  // Event handler ketika menerima pesan MQTT
+  // ============================================================
+  // Event Callback: mqttClient.on("message")
+  // Deskripsi: Event handler utama ketika menerima pesan publikasi MQTT.
+  //            Memproses data sensor, menyimpannya ke database dengan deadband filter,
+  //            mengirimkan update live via Socket.io, melacak status heartbeat perangkat,
+  //            dan mengirimkan notifikasi Telegram bila ada transisi status aktuator.
+  // ============================================================
   mqttClient.on("message", async (topic, message) => {
     if (topic === "smartfarm/telemetry") {
       try {

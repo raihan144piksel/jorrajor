@@ -15,6 +15,13 @@ interface HistoryChartProps {
   data: TelemetryData[];
 }
 
+/**
+ * Komponen HistoryChart menampilkan grafik area interaktif (Recharts) yang memplot
+ * riwayat telemetri (suhu, kelembapan tanah, intensitas cahaya, dan kelembapan udara).
+ * 
+ * @param props - Properti komponen
+ * @param props.data - Array data telemetri yang akan diplot pada grafik
+ */
 const HistoryChart: React.FC<HistoryChartProps> = ({ data }) => {
   if (!data || data.length === 0) {
     return (

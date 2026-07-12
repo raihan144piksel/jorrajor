@@ -13,8 +13,10 @@ const router = express.Router();
 // ============================================================
 router
   .route("/")
-  // --- 1. GET /api/settings ---
-  // Mengambil konfigurasi threshold saat ini dari database untuk device_id tertentu.
+  // ============================================================
+  // Fungsi: GET /api/settings
+  // Deskripsi: Mengambil konfigurasi threshold saat ini dari database untuk device_id tertentu.
+  // ============================================================
   .get(authenticateToken, async (req: Request, res: Response) => {
     const device_id = (req.query.device_id as string) || "device0";
     let settings = await Settings.findOne({ device_id });
@@ -22,9 +24,11 @@ router
     if (!settings) settings = await Settings.create({ device_id });
     res.json(settings);
   })
-  // --- 2. POST /api/settings ---
-  // Memperbarui threshold sensor di DB dan mempublikasikan data perubahan tersebut
-  // ke ESP32 via broker MQTT agar threshold di firmware ter-update secara real-time.
+  // ============================================================
+  // Fungsi: POST /api/settings
+  // Deskripsi: Memperbarui threshold sensor di DB dan mempublikasikan data perubahan tersebut
+  //            ke ESP32 via broker MQTT agar threshold di firmware ter-update secara real-time.
+  // ============================================================
   .post(authenticateToken, async (req: Request, res: Response) => {
     const { device_id = "device0", temp_threshold, hum_threshold, light_threshold, retention_days } = req.body;
 

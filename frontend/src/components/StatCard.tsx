@@ -7,6 +7,16 @@ interface StatCardProps {
     color: string;
 }
 
+/**
+ * Komponen StatCard merender kartu ringkasan statistik sederhana dengan label, nilai utama,
+ * nilai sub-informasi opsional, dan warna aksen di sisi kiri kartu.
+ * 
+ * @param props - Properti komponen
+ * @param props.label - Label deskripsi statistik (contoh: "Rata-rata Suhu")
+ * @param props.value - Nilai utama yang ingin ditampilkan
+ * @param props.subValue - Keterangan tambahan di bawah nilai utama (opsional)
+ * @param props.color - Kelas warna border CSS kiri
+ */
 const StatCard: React.FC<StatCardProps> = ({ label, value, subValue, color }) => {
 
     const displayValue = (value !== undefined && value !== null) ? value : '--';

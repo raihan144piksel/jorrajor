@@ -1,5 +1,12 @@
 import mongoose, { Document, Schema } from "mongoose";
 
+// ============================================================
+// Interface: ITelemetry
+// Deskripsi: Representasi tipe data TypeScript untuk dokumen data telemetri,
+//            menyimpan nilai sensor (suhu, kelembapan udara, kelembapan tanah, intensitas cahaya),
+//            status aktuator (kipas, pompa, lampu), state kontrol (manual/otomatis),
+//            dan waktu penerimaan data.
+// ============================================================
 export interface ITelemetry extends Document {
   device_id: string;
   suhu: number;
@@ -15,6 +22,11 @@ export interface ITelemetry extends Document {
   timestamp: Date;
 }
 
+// ============================================================
+// Skema: telemetrySchema
+// Deskripsi: Definisi skema MongoDB (Mongoose Schema) untuk pencatatan
+//            data real-time sensor dan status aktuator greenhouse.
+// ============================================================
 const telemetrySchema: Schema = new mongoose.Schema({
   device_id: { type: String, default: "UNKNOWN" },
   suhu: Number,
@@ -30,11 +42,14 @@ const telemetrySchema: Schema = new mongoose.Schema({
   timestamp: { type: Date, default: Date.now },
 });
 
-// CREATE INDEX ON TIMESTAMP FOR O(log N) QUERIES AND SORTING!
+// ============================================================
+// Indeks & Ekspor Model
+// Deskripsi: Membuat indeks pencarian cepat untuk timestamp, kelembapan tanah,
+//            dan compound index untuk penyaringan multi-node.
+//            Mengekspor Mongoose model 'Telemetry' berdasarkan skema telemetrySchema.
+// ============================================================
 telemetrySchema.index({ timestamp: -1 });
-// CREATE INDEX ON TANAH FOR O(log N) MIN/MAX ANALYTICS QUERIES!
 telemetrySchema.index({ tanah: 1 });
-// CREATE COMPOUND INDEX FOR MULTI-NODE LOG FILTERING AND SORTING!
 telemetrySchema.index({ device_id: 1, timestamp: -1 });
 
 export default mongoose.model<ITelemetry>("Telemetry", telemetrySchema);
