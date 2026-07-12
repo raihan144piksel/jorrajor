@@ -5,7 +5,7 @@
 #include <PubSubClient.h>
 #include <WiFiClientSecure.h>
 #include <Preferences.h>
-#include "../config.h"
+#include "config.h"
 
 // Pins
 #define DHTPIN       23

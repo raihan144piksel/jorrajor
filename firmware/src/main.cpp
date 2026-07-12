@@ -1,7 +1,8 @@
-#include "src/globals.h"
-#include "src/RelayController.h"
-#include "src/SensorReader.h"
-#include "src/MqttHandler.h"
+#include <Arduino.h>
+#include "globals.h"
+#include "relay/RelayController.h"
+#include "sensor/SensorReader.h"
+#include "mqtt/MqttHandler.h"
 
 
 

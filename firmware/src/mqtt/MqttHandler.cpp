@@ -152,7 +152,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   bool isOTA      = strcmp(topic, TOPIC_OTA) == 0;
   if (!isControl && !isSettings && !isOTA) return;
 
-  StaticJsonDocument<256> doc;
+  JsonDocument doc;
   DeserializationError err = deserializeJson(doc, payload, length);
   if (err) {
     Serial.printf("[MQTT] JSON error: %s\n", err.c_str());
@@ -165,7 +165,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       char nameLower[32];
       toLowercase(r.name, nameLower, sizeof(nameLower));
       
-      if (doc.containsKey(nameLower)) {
+      if (!doc[nameLower].isNull()) {
         int cmd = doc[nameLower].is<bool>() ? (doc[nameLower].as<bool>() ? 1 : 0) : doc[nameLower].as<int>();
         *(r.overrideMode) = cmd;
         if (cmd == 1) {
@@ -189,21 +189,21 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
 
   else if (isSettings) {
-    if (doc.containsKey("temp"))  suhuThreshold   = doc["temp"].as<float>();
-    if (doc.containsKey("hum"))   soilThreshold   = doc["hum"].as<float>();
-    if (doc.containsKey("light")) cahayaThreshold = doc["light"].as<float>();
+    if (!doc["temp"].isNull())  suhuThreshold   = doc["temp"].as<float>();
+    if (!doc["hum"].isNull())   soilThreshold   = doc["hum"].as<float>();
+    if (!doc["light"].isNull()) cahayaThreshold = doc["light"].as<float>();
     pendingPreferencesSave = true;
     pendingPublish = true;
     Serial.printf("[Settings] Diterima -> Suhu:%.1f Soil:%.1f Cahaya:%.1f\n",
                   suhuThreshold, soilThreshold, cahayaThreshold);
   }
 
-  else if (isOTA && doc.containsKey("url")) {
+  else if (isOTA && (!doc["url"].isNull())) {
     strlcpy(otaTargetUrl, doc["url"].as<const char*>(), sizeof(otaTargetUrl));
     otaTriggered = true;
     Serial.printf("[OTA] Perintah update diterima: %s\n", otaTargetUrl);
     
-    StaticJsonDocument<64> replyDoc;
+    JsonDocument replyDoc;
     replyDoc["state_ota"] = "MENUNGGU";
     char buffer[64];
     serializeJson(replyDoc, buffer);
@@ -256,13 +256,13 @@ void handleOTA() {
   otaTriggered = false;
   Serial.println("[OTA] Memulai HTTP Update...");
   
-  StaticJsonDocument<256> replyDoc;
+  JsonDocument replyDoc;
   replyDoc["state_ota"] = "MENDOWNLOAD";
   char buffer[256];
   serializeJson(replyDoc, buffer);
   mqttClient.publish(TOPIC_TELEMETRY, buffer);
 
-  StaticJsonDocument<64> preOtaDoc;
+  JsonDocument preOtaDoc;
   preOtaDoc["state_ota"] = "MENGINSTALL";
   char preOtaBuf[64];
   serializeJson(preOtaDoc, preOtaBuf);
