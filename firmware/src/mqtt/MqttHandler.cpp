@@ -13,7 +13,8 @@ void toLowercase(const char* src, char* dest, size_t destSize) {
   }
   dest[i] = '\0';
 }
-
+static WiFiManager wm;
+static unsigned long lastTimeConnected = 0;
 void setupWiFi() {
   String ssid = "";
   String pass = "";
@@ -65,8 +66,8 @@ void setupWiFi() {
   bool configPortalUsed = false;
   if (!connected) {
     Serial.println("[WiFi] Membuka portal AP WiFiManager...");
-    WiFiManager wm;
-    wm.setConfigPortalTimeout(180);
+    wm.setConfigPortalBlocking(true); // Pastikan blocking saat setup awal
+    wm.setConfigPortalTimeout(180); // Timeout 3 menit agar kembali mencoba offline mode
     
     if (!wm.startConfigPortal("SEMAI-SmartFarm", "admin123")) {
       Serial.println("[WiFi] Gagal konek atau timeout portal.");
@@ -91,18 +92,42 @@ void setupWiFi() {
     }
     Serial.printf("[WiFi] IP Address: %s\n", WiFi.localIP().toString().c_str());
   }
+
+  // Inisialisasi lastTimeConnected setelah selesai setup WiFi
+  lastTimeConnected = millis();
 }
 
 static unsigned long wifiRetryInterval = 5000;
 static unsigned long lastWifiAttempt = 0;
-
+static bool portalWasActive = false;
 void jagaWiFi() {
+  bool portalIsActive = wm.getConfigPortalActive();
   if (WiFi.status() == WL_CONNECTED) {
-    wifiRetryInterval = 5000; // Reset backoff on success
+    lastTimeConnected = millis();
+    wifiRetryInterval = 5000; // Reset kembali jeda waktu tunggu ke 5 detik jika berhasil terhubung
+    
+    // Cek apakah kredensial di NVS perlu diperbarui (jika tersambung via portal baru)
+    String currentSSID = preferences.getString("wifi_ssid", "");
+    String currentPass = preferences.getString("wifi_pass", "");
+    if (currentSSID != WiFi.SSID() || currentPass != WiFi.psk()) {
+      preferences.putString("wifi_ssid", WiFi.SSID());
+      preferences.putString("wifi_pass", WiFi.psk());
+      Serial.printf("[NVS] Kredensial WiFi baru disimpan -> SSID: %s\n", WiFi.SSID().c_str());
+    }
+
+    if (portalIsActive) {
+      wm.process();
+    }
     return;
   }
 
+  // Handle jika portal sedang aktif (non-blocking)
+  if (portalIsActive) {
+    wm.process();
+  } else {
   unsigned long now = millis();
+    
+    // 1. Lakukan percobaan reconnect berkala (exponential backoff)
   if (now - lastWifiAttempt >= wifiRetryInterval) {
     lastWifiAttempt = now;
     Serial.printf("[WiFi] Terputus. Mencoba reconnect (Interval: %lu ms)...\n", wifiRetryInterval);
@@ -111,6 +136,24 @@ void jagaWiFi() {
     // Exponential backoff up to 2 minutes (120000 ms)
     wifiRetryInterval = min(wifiRetryInterval * 2, 120000UL);
   }
+
+    // 2. Jika terputus lebih dari 30 detik (30000 ms), buka Captive Portal secara non-blocking
+    if (now - lastTimeConnected >= 30000UL) {
+      Serial.println("[WiFi] Terputus > 30 detik. Membuka portal AP WiFiManager (Non-blocking)...");
+      wm.setConfigPortalBlocking(false); // Pastikan non-blocking saat runtime
+      wm.setConfigPortalTimeout(180);    // Timeout 3 menit
+      wm.startConfigPortal("SEMAI-SmartFarm", "admin123");
+    }
+  }
+
+  // Deteksi transisi jika portal baru saja ditutup atau timeout
+  if (portalWasActive && !portalIsActive) {
+    Serial.println("[WiFi] Portal AP WiFiManager ditutup/timeout. Melanjutkan reconnect...");
+    lastTimeConnected = millis(); // Reset timer agar tidak langsung membuka portal lagi
+    wifiRetryInterval = 5000;    // Reset interval reconnect
+  }
+
+  portalWasActive = portalIsActive;
 }
 
 static unsigned long mqttRetryInterval = 5000;
