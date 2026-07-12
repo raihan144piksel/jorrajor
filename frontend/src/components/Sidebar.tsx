@@ -39,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, onLogout }) 
           <div className="bg-emerald-500 p-2 rounded-xl shadow-lg shadow-emerald-500/20 shrink-0">
             <Leaf className="text-white" size={24} />
           </div>
-          {!isFolded && <h1 className="text-xl font-bold text-white tracking-tight animate-in fade-in duration-300 truncate">RumahIjo</h1>}
+          {!isFolded && <h1 className="text-xl font-bold text-white tracking-tight animate-in fade-in duration-300 truncate">AuraSmart</h1>}
         </div>
 
         <nav className={`flex-1 space-y-2 mt-4 ${isFolded ? "px-2" : "px-4"}`}>

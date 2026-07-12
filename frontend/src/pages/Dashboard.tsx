@@ -54,7 +54,7 @@ const Dashboard: React.FC = () => {
   const [aiMessages, setAiMessages] = useState<ChatMessage[]>([
     {
       role: "model",
-      text: "Halo! Saya adalah SEMAI AI Greenhouse Assistant. Saya memantau kondisi greenhouse Anda secara real-time. Ada yang bisa saya bantu hari ini?",
+      text: "Halo! Saya adalah ZENITH AI Greenhouse Assistant. Saya memantau kondisi greenhouse Anda secara real-time. Ada yang bisa saya bantu hari ini?",
     },
   ]);
 
@@ -252,35 +252,47 @@ const Dashboard: React.FC = () => {
 
 
 
-  // 3. Socket.io Connection
+  // ============================================================
+  // PEMANTAUAN WEBSOCKET (SOCKET.IO): Koneksi & Event Listeners
+  // ============================================================
+  // Hook useEffect ini menginisialisasi koneksi WebSocket client secara real-time ke backend.
+  // Dilengkapi dengan token JWT untuk autentikasi dan mekanisme auto-reconnect jika koneksi terputus.
   useEffect(() => {
     const token = localStorage.getItem("app_token");
+    
+    // Inisialisasi koneksi Socket.io dengan opsi konfigurasi
     const socket = io(backendUrl, {
-      auth: { token },
-      transports: ["polling", "websocket"], // Mulai dengan polling untuk stabilitas, lalu upgrade
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 10,
+      auth: { token },                      // Menyertakan token JWT untuk melewati middleware otentikasi backend
+      transports: ["polling", "websocket"], // Mendukung polling HTTP dan Websocket murni (untuk fleksibilitas firewall)
+      reconnection: true,                   // Mengaktifkan fitur koneksi ulang otomatis
+      reconnectionDelay: 1000,              // Delay jeda 1 detik sebelum mencoba koneksi ulang pertama
+      reconnectionAttempts: 10,             // Batas percobaan koneksi ulang maksimal 10 kali
     });
 
     socketRef.current = socket;
 
+    // --- EVENT: Terhubung / Terputus ke Server Backend ---
     socket.on("connect", () => setIsOnline(true));
     socket.on("disconnect", () => setIsOnline(false));
 
+    // --- EVENT: Menerima Daftar Status Online Semua Node ESP32 ---
     socket.on("esp_statuses", (statuses: Record<string, boolean>) => {
       setEspStatuses(statuses);
     });
 
+    // --- EVENT: Update Status Online Satu Node ESP32 (Online/Offline) ---
     socket.on("esp_status", (payload: { device_id: string; online: boolean }) => {
       setEspStatuses((prev) => ({ ...prev, [payload.device_id]: payload.online }));
     });
 
+    // --- EVENT: Update Progress Status FOTA (Update Firmware) ---
     socket.on("ota_status", (status: string) => {
       setOtaStatus(status);
     });
 
+    // --- EVENT: Menerima Telemetri Sensor Real-Time (Live Stream) ---
     socket.on("telemetry_live", (payload: TelemetryData & { device_id?: string }) => {
+      // Abaikan data jika data berasal dari node lain yang tidak sedang dipilih di UI dropdown
       if (payload.device_id && payload.device_id !== selectedNodeRef.current) return;
 
       const dataWithTime = {
@@ -288,17 +300,22 @@ const Dashboard: React.FC = () => {
         timestamp: payload.timestamp || new Date().toISOString(),
       };
 
+      // Perbarui state data sensor utama untuk memperbarui widget card sensor
       setData(dataWithTime);
       
-      // Update Live History (socket raw data)
+      // Masukkan data baru ke dalam array riwayat live history untuk memperbarui grafik real-time
       setLiveHistory((prev) => {
+        // Mencegah duplikasi data berdasarkan timestamp yang sama
         if (prev.some((d) => d.timestamp === dataWithTime.timestamp)) return prev;
+        
+        // Simpan maksimal 100 data sensor terakhir untuk menjaga performa rendering grafik browser
         return [...prev, dataWithTime]
           .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
           .slice(-100);
       });
     });
 
+    // Clean-up function: Memutus koneksi WebSocket saat komponen di-unmount (misal saat berpindah halaman/logout)
     return () => {
       socket.disconnect();
     };
@@ -342,7 +359,7 @@ const Dashboard: React.FC = () => {
                 </div>
                 
                 <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
-                  {["1h", "6h", "24h", "7d", "30d"].map((range) => (
+                  {["1j", "6j", "24j", "7h", "30h"].map((range) => (
                     <button
                       key={range}
                       onClick={() => setAnalyticsRange(range)}

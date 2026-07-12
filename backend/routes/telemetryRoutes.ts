@@ -5,6 +5,12 @@ import DeviceLog from "../models/DeviceLog.js";
 
 const router = express.Router();
 
+// ============================================================
+// Endpoint: GET /api/telemetry
+// Deskripsi: Mengambil riwayat data telemetri sensor berdasarkan rentang waktu 
+//            (30m, 24h, dll) dan melakukan agregasi data (binning/grouping) jika diminta.
+//            Dilindungi oleh middleware authenticateToken.
+// ============================================================
 router.get(
   "/",
   authenticateToken,
@@ -14,16 +20,17 @@ router.get(
       const binStr = (req.query.bin as string) || "none";
       const device_id = (req.query.device_id as string) || "device0";
 
-      let msRange = 30 * 60 * 1000;
+      // --- 1. MENGHITUNG JARAK WAKTU QUERY ---
+      let msRange = 30 * 60 * 1000; // Default 30 menit
       if (rangeStr.endsWith("m")) msRange = parseInt(rangeStr) * 60 * 1000;
       else if (rangeStr.endsWith("h")) msRange = parseInt(rangeStr) * 60 * 60 * 1000;
       else if (rangeStr.endsWith("d")) msRange = parseInt(rangeStr) * 24 * 60 * 60 * 1000;
 
       let endTime = new Date();
+      // Mengambil timestamp data terakhir untuk menentukan batas akhir rentang pencarian data (mencegah data kosong di grafik)
       const latestDoc = await Telemetry.findOne({ device_id }).sort({ timestamp: -1 }).lean();
       if (latestDoc) {
         const latestTime = new Date(latestDoc.timestamp);
-        // If the latest data is older than 10 minutes, adjust the query end time
         if (latestTime.getTime() < Date.now() - 10 * 60 * 1000) {
           endTime = latestTime;
         }
@@ -35,9 +42,11 @@ router.get(
 
       let result;
 
+      // --- 2. QUERY TANPA AGREGASI (Murni) ---
       if (binStr === "none") {
         result = await Telemetry.find({ device_id, timestamp: { $gte: startTime, $lte: endTime } }).sort({ timestamp: 1 }).lean();
       } else {
+        // --- 3. QUERY DENGAN AGREGASI MONGODB (Binning) ---
         let binUnit = "minute";
         let binSize = 5;
         
@@ -52,6 +61,7 @@ router.get(
           binSize = parseInt(binStr);
         }
 
+        // Melakukan grouping rata-rata sensor berdasarkan interval waktu (binning)
         result = await Telemetry.aggregate([
           { $match: { device_id, timestamp: { $gte: startTime, $lte: endTime } } },
           {
@@ -95,6 +105,7 @@ router.get(
         ]);
       }
 
+      // Fallback jika tidak ada data dalam rentang tersebut, ambil 20 data terakhir
       if (result.length === 0) {
         const fallbackData = await Telemetry.find({ device_id }).sort({ timestamp: -1 }).limit(20).lean();
         result = fallbackData.reverse();
@@ -108,6 +119,12 @@ router.get(
   },
 );
 
+// ============================================================
+// Endpoint: GET /api/telemetry/table
+// Deskripsi: Mendapatkan data telemetri dengan skema pagination (halaman)
+//            untuk merender log tabel riwayat sensor di frontend.
+//            Dilindungi oleh middleware authenticateToken.
+// ============================================================
 router.get(
   "/table",
   authenticateToken,
@@ -118,6 +135,7 @@ router.get(
       const device_id = (req.query.device_id as string) || "device0";
       const skip = (page - 1) * limit;
 
+      // Jalankan query pencarian dan hitung total data secara paralel
       const [docs, total] = await Promise.all([
         Telemetry.find({ device_id }).sort({ timestamp: -1 }).skip(skip).limit(limit).lean(),
         Telemetry.countDocuments({ device_id })
@@ -130,13 +148,19 @@ router.get(
   }
 );
 
+// ============================================================
+// Endpoint: GET /api/telemetry/download
+// Deskripsi: Mengekspor seluruh log data sensor ke file CSV menggunakan metode streaming
+//            untuk menghemat beban memori server (heap memory).
+//            Dilindungi oleh middleware authenticateToken.
+// ============================================================
 router.get(
   "/download",
   authenticateToken,
   async (req: Request, res: Response): Promise<void> => {
     try {
       const device_id = (req.query.device_id as string) || "device0";
-      // Check if any data exists at all
+      // Pastikan data tidak kosong sebelum memulai unduhan
       const hasData = await Telemetry.exists({ device_id });
       if (!hasData) {
         res.status(404).send("Data masih kosong, belum bisa download.");
@@ -147,7 +171,7 @@ router.get(
       res.header("Content-Type", "text/csv");
       res.attachment(fileName);
 
-      // CSV headers matching the field mappings
+      // Tulis baris header kolom CSV
       const headers = [
         "Waktu",
         "Suhu (°C)",
@@ -163,10 +187,10 @@ router.get(
       ];
       res.write(headers.join(",") + "\n");
 
-      // Stream all data from MongoDB sorted by timestamp
+      // Melakukan streaming data secara sekuensial dari MongoDB
       const cursor = Telemetry.find({ device_id }).sort({ timestamp: 1 }).lean().cursor();
 
-      // Ensure cursor is closed if the request is aborted
+      // Tutup kursor database jika user membatalkan unduhan (koneksi terputus)
       req.on("close", () => {
         cursor.close();
       });
@@ -186,7 +210,7 @@ router.get(
           doc.state_lampu !== undefined && doc.state_lampu !== null ? doc.state_lampu : ""
         ];
 
-        // Format and escape CSV values to handle commas or quotes
+        // Format nilai string agar tidak merusak formatting CSV (escaping quotes/commas)
         const escapedRow = row.map(val => {
           const s = String(val);
           if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
@@ -210,6 +234,12 @@ router.get(
   },
 );
 
+// ============================================================
+// Endpoint: GET /api/telemetry/analytics
+// Deskripsi: Mengambil statistik agregasi harian untuk widget card analitik dashboard
+//            (suhu rata-rata, suhu maks/min, kelembapan tanah terendah).
+//            Dilindungi oleh middleware authenticateToken.
+// ============================================================
 router.get(
   "/analytics",
   authenticateToken,
@@ -224,10 +254,11 @@ router.get(
           endTime = latestTime;
         }
       }
-      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000);
+      const startTime = new Date(endTime.getTime() - 24 * 60 * 60 * 1000); // 24 Jam Terakhir
 
       const filter = { device_id, timestamp: { $gte: startTime, $lte: endTime } };
 
+      // Menjalankan kueri agregat rata-rata/maks/min, pencarian tanah kering, dan total log secara paralel
       const [statsResult, docTerendah, totalSemua] = await Promise.all([
         Telemetry.aggregate([
           { $match: filter },
@@ -241,9 +272,9 @@ router.get(
           },
         ]),
         Telemetry.findOne(filter).sort({
-          tanah: 1,
+          tanah: 1, // Diurutkan terkecil untuk mendeteksi tanah terkering
         }).lean(),
-        Telemetry.countDocuments({ device_id }), // Total data seluruh waktu
+        Telemetry.countDocuments({ device_id }),
       ]);
 
       const stats = statsResult[0];
@@ -280,6 +311,12 @@ router.get(
   },
 );
 
+// ============================================================
+// Endpoint: GET /api/telemetry/nodes
+// Deskripsi: Mendapatkan daftar nama unik device_id (node sensor) 
+//            yang pernah mengirim data ke database untuk dirender di dropdown dashboard.
+//            Dilindungi oleh middleware authenticateToken.
+// ============================================================
 router.get(
   "/nodes",
   authenticateToken,
@@ -297,6 +334,12 @@ router.get(
   }
 );
 
+// ============================================================
+// Endpoint: GET /api/telemetry/device-logs
+// Deskripsi: Mendapatkan 50 log terakhir mengenai status online/offline 
+//            perangkat modul ESP32.
+//            Dilindungi oleh middleware authenticateToken.
+// ============================================================
 router.get(
   "/device-logs",
   authenticateToken,

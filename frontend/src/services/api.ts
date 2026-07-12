@@ -1,17 +1,23 @@
 import axios, { InternalAxiosRequestConfig } from "axios";
 import { TelemetryData, AnalyticsData, ThresholdSettings, LoginLogData, DeviceLogData } from "../types";
 
+// Pembersihan URL Backend dan API agar tidak berakhiran slash "/" demi kestabilan API call
 const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 export const backendUrl = rawBackendUrl.endsWith("/") ? rawBackendUrl.slice(0, -1) : rawBackendUrl;
 
 const rawApiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 export const apiUrl = rawApiUrl.endsWith("/") ? rawApiUrl.slice(0, -1) : rawApiUrl;
 
+// Inisialisasi HTTP Client menggunakan Axios dengan Base URL API target
 const apiClient = axios.create({
   baseURL: apiUrl,
 });
 
-// Otomatis sisipkan token di setiap request
+// ============================================================
+// Interceptor: Request
+// Deskripsi: Menyisipkan token autentikasi JWT secara otomatis ke header Authorization
+//            pada setiap request HTTP keluar.
+// ============================================================
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem("app_token");
   if (token && config.headers) {
@@ -20,18 +26,26 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// Tangani 401 di satu tempat
+// ============================================================
+// Interceptor: Response
+// Deskripsi: Menangani respon error secara terpusat. Jika mendapatkan error 401 (Unauthorized),
+//            token dihapus dari storage dan pengguna dipaksa diarahkan (redirect) ke halaman login.
+// ============================================================
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("app_token");
-      window.location.href = "/login"; // hard redirect
+      window.location.href = "/login"; // Force redirect
     }
     return Promise.reject(error);
   },
 );
 
+// ============================================================
+// Fungsi: getTelemetry(range, bin, device_id)
+// Deskripsi: Mengambil data telemetri sensor (suhu, kelembapan, dll) untuk keperluan grafik.
+// ============================================================
 export const getTelemetry = async (
   range = "30m",
   bin = "none",
@@ -50,6 +64,10 @@ export interface TableResponse {
   totalPages: number;
 }
 
+// ============================================================
+// Fungsi: getTableData(page, limit, device_id)
+// Deskripsi: Mengambil data telemetri ter-paginasi (per halaman) untuk mempopulasi tabel riwayat.
+// ============================================================
 export const getTableData = async (
   page = 1,
   limit = 50,
@@ -61,6 +79,10 @@ export const getTableData = async (
   return response.data;
 };
 
+// ============================================================
+// Fungsi: getAnalytics(device_id)
+// Deskripsi: Mengambil data ringkasan analitik (suhu rata-rata, min/max, kelembapan tanah terendah).
+// ============================================================
 export const getAnalytics = async (device_id = "device0"): Promise<AnalyticsData> => {
   const response = await apiClient.get<AnalyticsData>("/telemetry/analytics", {
     params: { device_id },
@@ -68,6 +90,10 @@ export const getAnalytics = async (device_id = "device0"): Promise<AnalyticsData
   return response.data;
 };
 
+// ============================================================
+// Fungsi: sendControl(device, status, device_id)
+// Deskripsi: Mengirimkan perintah override manual aktuator (kipas/pompa/lampu) ke backend.
+// ============================================================
 export const sendControl = async (
   device: string,
   status: boolean | number,
@@ -77,6 +103,11 @@ export const sendControl = async (
   return response.data;
 };
 
+// ============================================================
+// Fungsi: uploadFirmware(file, device_id)
+// Deskripsi: Mengunggah file biner firmware (.bin) baru untuk proses FOTA (nirkabel)
+//            dan mengirimkan informasi target node ESP32.
+// ============================================================
 export const uploadFirmware = async (
   file: File,
   device_id = "device0",
@@ -104,6 +135,10 @@ export const uploadFirmware = async (
   return response.json();
 };
 
+// ============================================================
+// Fungsi: login(username, password)
+// Deskripsi: Memproses permintaan autentikasi login pengguna.
+// ============================================================
 export const login = async (
   username: string,
   password: string,
@@ -115,10 +150,14 @@ export const login = async (
   return response.data;
 };
 
+// ============================================================
+// Fungsi: getDownloadUrl(device_id)
+// Deskripsi: Mengunduh data log sensor mentah ke file CSV dan men-trigger proses download di browser.
+// ============================================================
 export const getDownloadUrl = async (device_id = "device0"): Promise<void> => {
   const response = await apiClient.get("/telemetry/download", {
     params: { device_id },
-    responseType: "blob", // penting untuk file
+    responseType: "blob", // Menentukan jenis respon biner (Blob)
   });
   const url = window.URL.createObjectURL(new Blob([response.data]));
   const link = document.createElement("a");
@@ -133,6 +172,10 @@ export const getDownloadUrl = async (device_id = "device0"): Promise<void> => {
   window.URL.revokeObjectURL(url);
 };
 
+// ============================================================
+// Fungsi: getSettings(device_id)
+// Deskripsi: Mengambil data threshold suhu, tanah, cahaya untuk suatu node ESP32.
+// ============================================================
 export const getSettings = async (device_id = "device0"): Promise<ThresholdSettings> => {
   const response = await apiClient.get<ThresholdSettings>("/settings", {
     params: { device_id },
@@ -140,6 +183,10 @@ export const getSettings = async (device_id = "device0"): Promise<ThresholdSetti
   return response.data;
 };
 
+// ============================================================
+// Fungsi: updateSettings(settings)
+// Deskripsi: Mengubah nilai threshold baru di backend untuk diperbarui ke database & alat.
+// ============================================================
 export const updateSettings = async (
   settings: Partial<ThresholdSettings> & { device_id?: string },
 ): Promise<{ message: string }> => {
@@ -150,16 +197,28 @@ export const updateSettings = async (
   return response.data;
 };
 
+// ============================================================
+// Fungsi: getLoginLogs()
+// Deskripsi: Mengambil riwayat data log login aktivitas masuk user.
+// ============================================================
 export const getLoginLogs = async (): Promise<LoginLogData[]> => {
   const response = await apiClient.get<LoginLogData[]>("/login-logs");
   return response.data;
 };
 
+// ============================================================
+// Fungsi: getDeviceLogs()
+// Deskripsi: Mengambil riwayat status koneksi online/offline perangkat keras ESP32.
+// ============================================================
 export const getDeviceLogs = async (): Promise<DeviceLogData[]> => {
   const response = await apiClient.get<DeviceLogData[]>("/telemetry/device-logs");
   return response.data;
 };
 
+// ============================================================
+// Fungsi: getNodes()
+// Deskripsi: Mengambil daftar semua nama node sensor (device_id) yang aktif terdaftar.
+// ============================================================
 export const getNodes = async (): Promise<string[]> => {
   const response = await apiClient.get<string[]>("/telemetry/nodes");
   return response.data;

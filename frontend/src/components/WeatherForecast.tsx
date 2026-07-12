@@ -59,7 +59,10 @@ interface Coords {
 const CACHE_KEY = "weather_cache_data";
 const CACHE_DURATION = 60 * 60 * 1000; // 1 Jam
 
-// Mapping WMO Weather Codes to Lucide Icons
+// ============================================================
+// Fungsi: getWeatherIcon(code: number)
+// Deskripsi: Memetakan WMO Weather Codes (kode cuaca standar WMO) ke komponen ikon React Lucide.
+// ============================================================
 const getWeatherIcon = (code: number) => {
   if (code === 0) return <Sun className="text-yellow-400" />;
   if (code <= 3) return <Cloud className="text-slate-400" />;
@@ -86,6 +89,10 @@ const WeatherForecast: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // ==========================================
+  // PENARIKAN API CUACA (OPEN-METEO): Sinkronisasi Data Cuaca 7 Hari
+  // ==========================================
+  // React hook useEffect dijalankan setiap koordinat (coords) berubah atau dipicu secara manual (refreshTrigger).
   useEffect(() => {
     let ignore = false;
     const isManualRefresh = refreshTrigger > 0;
@@ -93,6 +100,9 @@ const WeatherForecast: React.FC = () => {
     const runFetch = async () => {
       setLoading(true);
       try {
+        // --- 1. MEKANISME CACHING ---
+        // Jika bukan refresh manual, periksa apakah data cuaca tersimpan di localStorage.
+        // Cache valid selama 1 jam (CACHE_DURATION) untuk menghindari pembatasan limit API Open-Meteo.
         if (!isManualRefresh) {
           const cached = localStorage.getItem(CACHE_KEY);
           if (cached) {
@@ -113,6 +123,9 @@ const WeatherForecast: React.FC = () => {
           }
         }
 
+        // --- 2. PENYIAPAN PARAMETER API OPEN-METEO ---
+        // Meminta data cuaca per-jam (hourly) seperti suhu udara, kelembapan, kecepatan angin, curah hujan,
+        // dan kelembapan tanah lapisan atas (soil_moisture_0_to_1cm).
         const params = {
           latitude: coords.lat,
           longitude: coords.lon,
@@ -129,11 +142,15 @@ const WeatherForecast: React.FC = () => {
           timezone: "auto",
           forecast_days: 7,
         };
+        
+        // --- 3. MEMANGGIL API OPEN-METEO ---
         const url = "https://api.open-meteo.com/v1/forecast";
         const responses = await fetchWeatherApi(url, params);
         const response = responses[0]!;
         const hourly = response.hourly()!;
 
+        // --- 4. FORMATTING / PARSING RESPON API ---
+        // Memetakan array hasil respons API biner Open-Meteo ke array objek JavaScript (WeatherHourlyPoint)
         const dataPoints: WeatherHourlyPoint[] = Array.from(
           { length: (Number(hourly.timeEnd()) - Number(hourly.time())) / hourly.interval() },
           (_, i) => ({
@@ -149,6 +166,7 @@ const WeatherForecast: React.FC = () => {
           })
         );
 
+        // Agregasi data per-jam menjadi data harian (daily) untuk ramalan cuaca ringkas 7 hari
         const daily: WeatherDailyPoint[] = [];
         for (let i = 0; i < 7; i++) {
           const dayData = dataPoints.slice(i * 24, (i + 1) * 24);
@@ -162,6 +180,7 @@ const WeatherForecast: React.FC = () => {
 
         const freshData: WeatherData = { hourly: dataPoints, daily, lastUpdated: new Date().toISOString() };
         
+        // Simpan data terbaru ke state dan perbarui cache localStorage
         if (!ignore) {
           setForecastData(freshData);
           localStorage.setItem(CACHE_KEY, JSON.stringify(freshData));
@@ -179,16 +198,28 @@ const WeatherForecast: React.FC = () => {
     return () => { ignore = true; };
   }, [coords, refreshTrigger]);
 
+  // ============================================================
+  // Fungsi: handleManualRefresh()
+  // Deskripsi: Memaksa pembaruan data cuaca dari API secara instan (mengabaikan cache).
+  // ============================================================
   const handleManualRefresh = () => {
     setRefreshTrigger(prev => prev + 1);
   };
 
+  // ============================================================
+  // Fungsi: applyNewCoords()
+  // Deskripsi: Menerapkan koordinat baru yang diinput secara manual oleh user.
+  // ============================================================
   const applyNewCoords = () => {
     setCoords(draftCoords);
     setShowSettings(false);
-    setRefreshTrigger(prev => prev + 1); // Force fresh fetch for new location
+    setRefreshTrigger(prev => prev + 1); // Memaksa refresh data baru untuk lokasi baru
   };
 
+  // ============================================================
+  // Fungsi: handleUseCurrentLocation()
+  // Deskripsi: Meminta izin akses lokasi GPS browser (Geolocation API) untuk mendapatkan koordinat user.
+  // ============================================================
   const handleUseCurrentLocation = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition((pos) => {
@@ -207,6 +238,10 @@ const WeatherForecast: React.FC = () => {
     text: "#94a3b8",
   };
 
+  // ============================================================
+  // Fungsi: tooltipFormatter()
+  // Deskripsi: Memformat tampilan label & satuan pada tooltip grafik interaktif (Recharts).
+  // ============================================================
   const tooltipFormatter = useCallback((value: unknown, name: unknown): [React.ReactNode, string] => {
     const val = Number(value || 0);
     const nameStr = String(name || "");

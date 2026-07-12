@@ -4,7 +4,11 @@
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
 
-// Zero-heap string utility helper implementation
+// ============================================================
+// Fungsi: toLowercase(const char* src, char* dest, size_t destSize)
+// Deskripsi: Mengubah string sumber menjadi huruf kecil semua secara manual (zero-heap)
+//            untuk mencocokkan payload JSON dengan entitas nama relay.
+// ============================================================
 void toLowercase(const char* src, char* dest, size_t destSize) {
   size_t i = 0;
   while (src[i] != '\0' && i < destSize - 1) {
@@ -15,13 +19,20 @@ void toLowercase(const char* src, char* dest, size_t destSize) {
 }
 static WiFiManager wm;
 static unsigned long lastTimeConnected = 0;
+
+// ============================================================
+// Fungsi: setupWiFi()
+// Deskripsi: Menghubungkan ESP32 ke jaringan WiFi secara non-blocking / portal.
+//            Mencari kredensial di NVS (Flash Memory), jika tidak ada, mencoba config.h,
+//            dan jika gagal, akan membuka Captive Portal WiFiManager.
+// ============================================================
 void setupWiFi() {
   String ssid = "";
   String pass = "";
   bool loadedFromNVS = false;
   bool loadedFromConfig = false;
 
-  // 1. Read Wi-Fi settings from NVS
+  // 1. Membaca kredensial Wi-Fi yang tersimpan di NVS (Non-Volatile Storage)
   ssid = preferences.getString("wifi_ssid", "");
   pass = preferences.getString("wifi_pass", "");
   
@@ -29,7 +40,7 @@ void setupWiFi() {
     loadedFromNVS = true;
   }
 
-  // 2. Fallback to compile-time variables from config.h if NVS is empty
+  // 2. Jika NVS kosong, gunakan kredensial compile-time dari config.h (sebagai cadangan)
   if (!loadedFromNVS) {
     if (WIFI_SSID != nullptr && strlen(WIFI_SSID) > 0) {
       ssid = WIFI_SSID;
@@ -41,13 +52,14 @@ void setupWiFi() {
 
   bool connected = false;
   
-  // 3. Attempt connecting to Wi-Fi if credentials exist
+  // 3. Mencoba menghubungkan ke Wi-Fi dengan kredensial yang didapatkan
   if (loadedFromNVS || loadedFromConfig) {
     Serial.printf("[WiFi] Mencoba menghubungkan ke SSID: %s\n", ssid.c_str());
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid.c_str(), pass.c_str());
     
     unsigned long startMs = millis();
+    // Berikan timeout koneksi selama 15 detik agar tidak memblokir sistem selamanya
     while (WiFi.status() != WL_CONNECTED && millis() - startMs < 15000) {
       delay(500);
       Serial.print(".");
@@ -62,14 +74,15 @@ void setupWiFi() {
     }
   }
 
-  // 4. Open AP portal if not connected
+  // 4. Jika gagal terhubung, buka Captive Portal AP menggunakan WiFiManager
   bool configPortalUsed = false;
   if (!connected) {
     Serial.println("[WiFi] Membuka portal AP WiFiManager...");
     wm.setConfigPortalBlocking(true); // Pastikan blocking saat setup awal
     wm.setConfigPortalTimeout(180); // Timeout 3 menit agar kembali mencoba offline mode
     
-    if (!wm.startConfigPortal("SEMAI-SmartFarm", "admin123")) {
+    // Membuka AP dengan SSID "ZENITH-SmartFarm" dan sandi "admin123"
+    if (!wm.startConfigPortal("ZENITH-SmartFarm", "admin123")) {
       Serial.println("[WiFi] Gagal konek atau timeout portal.");
     } else {
       Serial.println("[WiFi] Portal terhubung!");
@@ -78,7 +91,7 @@ void setupWiFi() {
     }
   }
 
-  // 5. Synchronize connected credentials back to NVS ONLY if configured via Portal
+  // 5. Jika terhubung melalui portal AP, simpan kredensial baru tersebut ke dalam NVS Flash
   if (connected && WiFi.status() == WL_CONNECTED) {
     if (configPortalUsed) {
       String currentSSID = preferences.getString("wifi_ssid", "");
@@ -100,6 +113,13 @@ void setupWiFi() {
 static unsigned long wifiRetryInterval = 5000;
 static unsigned long lastWifiAttempt = 0;
 static bool portalWasActive = false;
+
+// ============================================================
+// Fungsi: jagaWiFi()
+// Deskripsi: Mengawasi status koneksi WiFi secara non-blocking.
+//            Jika terputus, melakukan rekoneksi berkala menggunakan exponential backoff
+//            (melipatgandakan jeda waktu tunggu agar menghemat resource daya alat).
+// ============================================================
 void jagaWiFi() {
   bool portalIsActive = wm.getConfigPortalActive();
   if (WiFi.status() == WL_CONNECTED) {
@@ -119,14 +139,14 @@ void jagaWiFi() {
     unsigned long now = millis();
     
     // 1. Lakukan percobaan reconnect berkala (exponential backoff)
-    if (now - lastWifiAttempt >= wifiRetryInterval) {
-      lastWifiAttempt = now;
-      Serial.printf("[WiFi] Terputus. Mencoba reconnect (Interval: %lu ms)...\n", wifiRetryInterval);
-      WiFi.reconnect();
-      
-      // Exponential backoff up to 2 minutes (120000 ms)
-      wifiRetryInterval = min(wifiRetryInterval * 2, 120000UL);
-    }
+  if (now - lastWifiAttempt >= wifiRetryInterval) {
+    lastWifiAttempt = now;
+    Serial.printf("[WiFi] Terputus. Mencoba reconnect (Interval: %lu ms)...\n", wifiRetryInterval);
+    WiFi.reconnect(); // Melakukan koneksi ulang otomatis ke access point terakhir
+    
+    // Lipat gandakan jeda tunggu hingga maksimal 2 menit (120000 ms)
+    wifiRetryInterval = min(wifiRetryInterval * 2, 120000UL);
+  }
 
     // 2. Jika terputus lebih dari 30 detik (30000 ms), buka Captive Portal secara non-blocking
     if (now - lastTimeConnected >= 30000UL) {
@@ -134,7 +154,7 @@ void jagaWiFi() {
       lastTimeConnected = now; // Reset timer segera untuk menghindari race condition pemanggilan berulang
       wm.setConfigPortalBlocking(false); // Pastikan non-blocking saat runtime
       wm.setConfigPortalTimeout(180);    // Timeout 3 menit
-      wm.startConfigPortal("SEMAI-SmartFarm", "admin123");
+      wm.startConfigPortal("ZENITH-SmartFarm", "admin123");
     }
   }
 
@@ -163,34 +183,46 @@ void jagaWiFi() {
 static unsigned long mqttRetryInterval = 5000;
 static unsigned long lastMqttAttempt = 0;
 
+// ============================================================
+// Fungsi: jagaMQTT()
+// Deskripsi: Memeriksa dan menjaga koneksi ke broker MQTT HiveMQ secara non-blocking.
+//            Jika WiFi terhubung tapi MQTT putus, lakukan rekoneksi berkala (exponential backoff).
+// ============================================================
 void jagaMQTT() {
   if (mqttClient.connected()) {
-    mqttRetryInterval = 5000; // Reset backoff on success
+    mqttRetryInterval = 5000; // Reset jeda ke 5 detik jika sukses
     return;
   }
 
-  if (WiFi.status() != WL_CONNECTED) return; // Wait for WiFi first
+  if (WiFi.status() != WL_CONNECTED) return; // Pastikan WiFi terhubung terlebih dahulu
 
   unsigned long now = millis();
   if (now - lastMqttAttempt >= mqttRetryInterval) {
     lastMqttAttempt = now;
     Serial.printf("[MQTT] Mencoba koneksi ke %s (Interval: %lu ms)...\n", MQTT_SERVER, mqttRetryInterval);
     
+    // Mencoba terhubung ke Broker MQTT
     if (mqttClient.connect(MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD)) {
       Serial.println("[MQTT] Terhubung!");
+      // Mendaftarkan langganan topik setelah koneksi sukses
       mqttClient.subscribe(TOPIC_CONTROL);
       mqttClient.subscribe(TOPIC_SETTINGS);
       mqttClient.subscribe(TOPIC_OTA);
       Serial.printf("[MQTT] Subscribe: %s, %s, & %s\n", TOPIC_CONTROL, TOPIC_SETTINGS, TOPIC_OTA);
-      mqttRetryInterval = 5000; // Reset backoff
+      mqttRetryInterval = 5000; // Reset jeda
     } else {
       Serial.printf("[MQTT] Gagal rc=%d\n", mqttClient.state());
-      // Exponential backoff up to 2 minutes (120000 ms)
+      // Melipatgandakan jeda tunggu rekoneksi (max 2 menit)
       mqttRetryInterval = min(mqttRetryInterval * 2, 120000UL);
     }
   }
 }
 
+// ============================================================
+// Fungsi: mqttCallback(char* topic, byte* payload, unsigned int length)
+// Deskripsi: Callback MQTT yang dipicu secara otomatis ketika ada pesan masuk
+//            dari broker pada topik control, settings, atau ota.
+// ============================================================
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.printf("[MQTT] Terima | %s\n", topic);
 
@@ -206,6 +238,8 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
+  // --- 1. TOPIK CONTROL (Override Relay Manual) ---
+  // Menerima perintah untuk mengaktifkan mode manual kipas, pompa, atau lampu.
   if (isControl) {
     for (int i = 0; i < NUM_RELAYS; i++) {
       auto &r = relays[i];
@@ -213,6 +247,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       toLowercase(r.name, nameLower, sizeof(nameLower));
       
       if (!doc[nameLower].isNull()) {
+        // Parsing perintah: 0 = AUTO, 1 = MANUAL ON, 2 = MANUAL OFF
         int cmd = doc[nameLower].is<bool>() ? (doc[nameLower].as<bool>() ? 1 : 0) : doc[nameLower].as<int>();
         *(r.overrideMode) = cmd;
         if (cmd == 1) {
@@ -232,22 +267,29 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
         }
       }
     }
+    // Set flag agar data status terbaru segera dipublikasikan di loop berikutnya
     pendingPublish = true;
   }
 
+  // --- 2. TOPIK SETTINGS (Mengubah Ambang Batas Sensor) ---
+  // Mengubah batasan suhu, kelembapan tanah, atau cahaya secara dinamis dari dashboard.
   else if (isSettings) {
     if (!doc["temp"].isNull())  suhuThreshold   = doc["temp"].as<float>();
     if (!doc["hum"].isNull())   soilThreshold   = doc["hum"].as<float>();
     if (!doc["light"].isNull()) cahayaThreshold = doc["light"].as<float>();
+    
+    // Tandai agar nilai baru ini ditulis ke flash memory (NVS) dan di-publish ke MQTT
     pendingPreferencesSave = true;
     pendingPublish = true;
     Serial.printf("[Settings] Diterima -> Suhu:%.1f Soil:%.1f Cahaya:%.1f\n",
                   suhuThreshold, soilThreshold, cahayaThreshold);
   }
 
+  // --- 3. TOPIK OTA (Melakukan Update Firmware Nirkabel) ---
+  // Menerima sinyal beserta URL untuk mendownload biner firmware baru.
   else if (isOTA && (!doc["url"].isNull())) {
     strlcpy(otaTargetUrl, doc["url"].as<const char*>(), sizeof(otaTargetUrl));
-    otaTriggered = true;
+    otaTriggered = true; // Set flag pemicu eksekusi update di loop utama
     Serial.printf("[OTA] Perintah update diterima: %s\n", otaTargetUrl);
     
     JsonDocument replyDoc;
@@ -258,6 +300,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
+// ============================================================
+// Fungsi: getRelayStateString(RelayState state)
+// Deskripsi: Mengubah enum RelayState menjadi string representasi text
+//            untuk kebutuhan penyusunan payload JSON telemetri MQTT.
+// ============================================================
 static const char* getRelayStateString(RelayState state) {
   switch (state) {
     case RelayState::IDLE:      return "IDLE";
@@ -268,8 +315,13 @@ static const char* getRelayStateString(RelayState state) {
   }
 }
 
+// ============================================================
+// Fungsi: publishData()
+// Deskripsi: Menyusun payload JSON data sensor dan status aktuator
+//            lalu mempublikasikannya ke broker MQTT (topik telemetri).
+// ============================================================
 void publishData() {
-  if (!mqttClient.connected()) return;
+  if (!mqttClient.connected()) return; // Batalkan jika MQTT tidak aktif
 
   JsonDocument doc;
   doc["id"] = DEVICE_ID;
@@ -278,15 +330,16 @@ void publishData() {
   doc["s"]  = tanah;
   doc["l"]  = cahaya;
 
+  // Menambahkan status masing-masing relay ke dokumen JSON
   for (int i = 0; i < NUM_RELAYS; i++) {
     const auto &r = relays[i];
     
-    char pfx = 'k'; // default for KIPAS
+    char pfx = 'k'; // default untuk KIPAS
     if (strcmp(r.name, "POMPA") == 0) pfx = 'p';
     else if (strcmp(r.name, "LAMPU") == 0) pfx = 'l';
 
-    char statusKey[3] = { 's', pfx, '\0' }; // e.g. "sk", "sp", "sl"
-    char stateKey[3]  = { 'e', pfx, '\0' }; // e.g. "ek", "ep", "el"
+    char statusKey[3] = { 's', pfx, '\0' }; // Menjadi "sk", "sp", atau "sl" (Status Relay)
+    char stateKey[3]  = { 'e', pfx, '\0' }; // Menjadi "ek", "ep", atau "el" (State Relay)
     
     doc[statusKey] = r.statusOn;
     doc[stateKey]  = *(r.overrideMode) != 0 ? "MANUAL" : getRelayStateString(r.state);
@@ -295,39 +348,50 @@ void publishData() {
   char buffer[256];
   serializeJson(doc, buffer);
 
+  // Kirim data terkompresi JSON ke broker MQTT
   bool ok = mqttClient.publish(TOPIC_TELEMETRY, buffer);
   Serial.printf("[MQTT] Publish %s\n", ok ? "OK" : "GAGAL");
 }
 
+// ============================================================
+// Fungsi: handleOTA()
+// Deskripsi: Mengunduh biner firmware (.bin) baru dari server backend 
+//            dan melakukan instalasi pembaruan sistem secara OTA (nirkabel).
+//            ESP32 akan melakukan restart otomatis jika update berhasil.
+// ============================================================
 void handleOTA() {
   otaTriggered = false;
   Serial.println("[OTA] Memulai HTTP Update...");
   
+// 1. Publikasikan status download awal
   JsonDocument replyDoc;
   replyDoc["state_ota"] = "MENDOWNLOAD";
   char buffer[256];
   serializeJson(replyDoc, buffer);
   mqttClient.publish(TOPIC_TELEMETRY, buffer);
 
+  // 2. Publikasikan status menginstall tepat sebelum update mengeksekusi restart
   JsonDocument preOtaDoc;
   preOtaDoc["state_ota"] = "MENGINSTALL";
   char preOtaBuf[64];
   serializeJson(preOtaDoc, preOtaBuf);
   mqttClient.publish(TOPIC_TELEMETRY, preOtaBuf);
-  mqttClient.loop();
+  mqttClient.loop(); // Pastikan paket terkirim sebelum koneksi terputus
   delay(200);
 
   t_httpUpdate_return ret;
   
+  // 3. Mengeksekusi modul pembaruan HTTP (mendukung HTTP dan HTTPS/SSL)
   if (otaTargetUrl[0] != '\0' && strncmp(otaTargetUrl, "https://", 8) == 0) {
     WiFiClientSecure clientOTASecure;
-    clientOTASecure.setInsecure();
+    clientOTASecure.setInsecure(); // Mengabaikan validasi rantai sertifikat SSL demi performa
     ret = httpUpdate.update(clientOTASecure, otaTargetUrl);
   } else {
     WiFiClient clientOTA;
     ret = httpUpdate.update(clientOTA, otaTargetUrl);
   }
 
+  // 4. Memeriksa hasil pembaruan jika tidak terjadi restart otomatis (kasus gagal/tidak ada update)
   switch (ret) {
     case HTTP_UPDATE_FAILED:
       Serial.printf("[OTA] Gagal: %s\n", httpUpdate.getLastErrorString().c_str());
@@ -342,6 +406,8 @@ void handleOTA() {
       replyDoc["state_ota"] = "BERHASIL";
       break;
   }
+  
+  // Publikasikan laporan status akhir kegagalan/tidak adanya update
   serializeJson(replyDoc, buffer);
   mqttClient.publish(TOPIC_TELEMETRY, buffer);
 }

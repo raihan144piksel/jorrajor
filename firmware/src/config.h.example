@@ -11,7 +11,7 @@ const char* const DEVICE_ID      = "device0";
 // MQTT Broker
 const char* const MQTT_SERVER    = "alamat_broker_anda";
 const int         MQTT_PORT      = 8883; // Port SSL/TLS
-const char* const MQTT_CLIENT_ID = "semainode01";
+const char* const MQTT_CLIENT_ID = "zenithnode01";
 const char* const MQTT_USER      = "user_mqtt";
 const char* const MQTT_PASSWORD  = "pass_mqtt";
 

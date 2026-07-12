@@ -1,8 +1,8 @@
-# 🌱 SEMAI Smart Farm — Enterprise IoT Dashboard
+# 🌱 Zenith Smart System — Enterprise IoT Dashboard
 
 ![Smart Farm Dashboard Mockup](preview.png)
 
-SEMAI Smart Farm adalah sistem monitoring dan otomatisasi rumah kaca berbasis IoT yang modern, responsif, dan _type-safe_. Proyek ini mencakup ekosistem lengkap mulai dari **Firmware (ESP32)**, **Backend (Node.js/TypeScript)**, hingga **Frontend (React/TypeScript)**.
+Zenith Smart System adalah sistem monitoring dan otomatisasi rumah kaca berbasis IoT yang modern, responsif, dan _type-safe_. Proyek ini mencakup ekosistem lengkap mulai dari **Firmware (ESP32)**, **Backend (Node.js/TypeScript)**, hingga **Frontend (React/TypeScript)**.
 
 ## ✨ Fitur Utama
 
@@ -181,7 +181,7 @@ Guna menjamin keandalan pemrosesan data real-time pada microchip ESP32, firmware
 1. Pastikan port TCP dibuka.
 2. Gunakan **PM2** dengan interpreter `tsx` agar server menyala terus-menerus:
    ```bash
-   pm2 start server.ts --interpreter tsx --name semai-backend
+   pm2 start server.ts --interpreter tsx --name zenith-backend
    ```
 
 ### Frontend
@@ -191,3 +191,9 @@ Guna menjamin keandalan pemrosesan data real-time pada microchip ESP32, firmware
 3. Jangan lupa atur _redirect rules_ agar SPA React Router tidak mengembalikan error 404 saat halamannya di-_refresh_.
 
 ---
+
+## 📄 Lisensi
+
+Proyek ini bersifat open-source. Silakan modifikasi sesuai kebutuhan Anda.
+
+**ZENITH - Solusi Modern Pertanian Indonesia**

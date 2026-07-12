@@ -27,6 +27,12 @@ let lastSavedData = {
 let lastSaveTime = 0;
 const FORCE_SAVE_INTERVAL = 5 * 60 * 1000; // Force save setiap 5 menit meskipun tidak ada perubahan
 
+// ============================================================
+// Fungsi: getNotificationMessage()
+// Deskripsi: Membandingkan status aktuator lama dan baru untuk mendeteksi 
+//            adanya transisi menyala (false -> true) atau mati (true -> false).
+//            Mengembalikan template pesan notifikasi yang sesuai, atau null jika tidak ada perubahan.
+// ============================================================
 const getNotificationMessage = (
   statusSekarang: boolean,
   statusLama: boolean,
@@ -39,6 +45,9 @@ const getNotificationMessage = (
 };
 
 export const initMqtt = (io: Server): void => {
+  // ==========================================
+  // TRANSMISI MQTT & WEBSOCKET: Setup Koneksi MQTT Broker (HiveMQ)
+  // ==========================================
   mqttClient = mqtt.connect(ENV.MQTT_URL, {
     username: ENV.MQTT_USER,
     password: ENV.MQTT_PASS,
@@ -50,21 +59,24 @@ export const initMqtt = (io: Server): void => {
 
   mqttClient.on("connect", () => {
     console.log("✅ Connected to HiveMQ");
+    // Berlangganan (subscribe) ke topik telemetri ESP32
     mqttClient?.subscribe("smartfarm/telemetry");
   });
 
+  // Event handler ketika menerima pesan MQTT
   mqttClient.on("message", async (topic, message) => {
     if (topic === "smartfarm/telemetry") {
       try {
         const raw = JSON.parse(message.toString());
         const deviceId = raw.id || "device0";
 
-        // Jika ini adalah pesan status OTA, update ke frontend dan abaikan penyimpanan DB
+        // Jika ini adalah pesan status FOTA, distribusikan statusnya ke frontend via WebSocket
         if (raw.state_ota) {
           io.emit("ota_status", raw.state_ota);
           return;
         }
 
+        // Simpan status online perangkat dan kirim notifikasi ke frontend
         if (!onlineDevices.get(deviceId)) {
           onlineDevices.set(deviceId, true);
           io.emit("esp_status", { device_id: deviceId, online: true });
@@ -73,7 +85,7 @@ export const initMqtt = (io: Server): void => {
           );
         }
 
-        // Map shortened JSON keys from the firmware back to the full database schema keys
+        // Mengubah payload ringkas (short-keys) dari hardware ke format schema database penuh
         const data = {
           device_id: deviceId,
           suhu: raw.t,
@@ -89,10 +101,12 @@ export const initMqtt = (io: Server): void => {
           timestamp: new Date().toISOString(),
         };
         
-        // TETAP KIRIM KE FRONTEND SECARA LIVE agar UI terasa responsif
+        // ==========================================
+        // TRANSMISI MQTT & WEBSOCKET: Kirim data live ke frontend via Socket.io
+        // ==========================================
         io.emit("telemetry_live", data);
 
-        // Heartbeat Logic
+        // Heartbeat Logic untuk melacak apakah ESP32 tiba-tiba offline
         const oldTimeout = deviceTimeouts.get(deviceId);
         if (oldTimeout) clearTimeout(oldTimeout);
 
@@ -107,7 +121,7 @@ export const initMqtt = (io: Server): void => {
 
         deviceTimeouts.set(deviceId, newTimeout);
 
-        // 1. Parsing & Destructuring data
+        // 1. Parsing & Destructuring data sensor
         const {
           device_id,
           suhu,
@@ -129,8 +143,15 @@ export const initMqtt = (io: Server): void => {
 
         const now = Date.now();
 
-        // DEADBAND FILTER LOGIC
-        // Cek apakah ada perubahan yang "signifikan"
+        // ==========================================
+        // ALGORITMA DEADBAND FILTER (Report by Exception)
+        // ==========================================
+        // Data sensor hanya dianggap berubah signifikan jika selisihnya melebihi ambang batas deadband:
+        // - Suhu berubah >= 0.5°C
+        // - Kelembapan Udara berubah >= 2.0%
+        // - Kelembapan Tanah berubah >= 2.0%
+        // - Intensitas Cahaya berubah >= 2.0%
+        // - ATAU jika terjadi transisi status perangkat aktuator (Kipas, Pompa, Lampu)
         const isSignificantChange =
           Math.abs(pSuhu - lastSavedData.suhu) >= 0.5 ||
           Math.abs(pKelembapan - lastSavedData.kelembapan_udara) >= 2.0 ||
@@ -140,12 +161,12 @@ export const initMqtt = (io: Server): void => {
           status_pompa !== lastSavedData.status_pompa ||
           status_lampu !== lastSavedData.status_lampu;
 
-        // Cek apakah sudah kelamaan tidak nyimpen data (Heartbeat Save)
+        // Force Save / Heartbeat Save: Paksa simpan data ke DB setiap 5 menit jika tidak ada perubahan signifikan
         const isTimeForced = now - lastSaveTime >= FORCE_SAVE_INTERVAL;
 
-        // 2. Simpan ke Database JIKA lolos filter
+        // 2. Simpan ke Database MongoDB hanya jika lolos seleksi Deadband Filter / Force Save
         if (isSignificantChange || isTimeForced) {
-          // Update save trackers immediately before yielding to prevent async duplicate writes
+          // Segera update variabel tracking untuk mencegah proses async ganda
           lastSaveTime = now;
           lastSavedData = {
             suhu: pSuhu,
@@ -172,7 +193,7 @@ export const initMqtt = (io: Server): void => {
             timestamp: data.timestamp,
           });
           
-          console.log(`💾 Saved to DB (Trigger: ${isSignificantChange ? 'Data Changed' : 'Time Forced'})`);
+          console.log(`💾 Saved to DB (Trigger: ${isSignificantChange ? 'Data Changed (Deadband Passed)' : 'Time Forced (Heartbeat)'})`);
         }
 
         const pesanNotif: string[] = [];
@@ -210,7 +231,7 @@ export const initMqtt = (io: Server): void => {
             lampu: status_lampu,
           };
 
-          const pesanFinal = `📢 *LAPORAN SISTEM SEMAI*\n\n${pesanNotif.join("\n\n")}`;
+          const pesanFinal = `📢 *LAPORAN SISTEM ZENITH*\n\n${pesanNotif.join("\n\n")}`;
 
           axios
             .post(`https://api.telegram.org/bot${ENV.TG_TOKEN}/sendMessage`, {
@@ -227,7 +248,17 @@ export const initMqtt = (io: Server): void => {
   });
 };
 
+// ============================================================
+// Fungsi: getMqttClient()
+// Deskripsi: Mengembalikan instance objek klien MQTT agar dapat digunakan di modul routing backend.
+// ============================================================
 export const getMqttClient = (): MqttClient | undefined => mqttClient;
+
+// ============================================================
+// Fungsi: getOnlineDevices()
+// Deskripsi: Mengonversi struktur Map onlineDevices menjadi object key-value standar
+//            untuk mempermudah pengiriman status koneksi perangkat ke frontend.
+// ============================================================
 export const getOnlineDevices = (): Record<string, boolean> => {
   const obj: Record<string, boolean> = {};
   onlineDevices.forEach((val, key) => {

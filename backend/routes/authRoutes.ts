@@ -9,6 +9,11 @@ import { authenticateToken } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
 
+// ============================================================
+// Konfigurasi Rate Limiting untuk Endpoint Login
+// ============================================================
+// Membatasi akses login maksimal 5 kali percobaan dalam 15 menit 
+// untuk memitigasi serangan brute-force.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
@@ -19,11 +24,17 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// ============================================================
+// Endpoint: POST /api/login
+// Deskripsi: Memproses permintaan autentikasi login pengguna.
+//            Memverifikasi username dan password menggunakan argon2,
+//            mencatat riwayat percobaan (sukses/gagal), dan mengeluarkan token JWT.
+// ============================================================
 router.post("/login", loginLimiter, async (req: Request, res: Response): Promise<void> => {
   try {
     const { username, password } = req.body;
     
-    // Extract client IP address securely, handling potential proxy and array formats
+    // --- Mengekstrak Alamat IP Client Secara Aman ---
     let rawIp: string = "UNKNOWN";
     const forwarded = req.headers["x-forwarded-for"];
     if (typeof forwarded === "string") {
@@ -37,8 +48,10 @@ router.post("/login", loginLimiter, async (req: Request, res: Response): Promise
     }
     const ipAddress = (rawIp.split(",")[0] || "UNKNOWN").trim();
 
+    // 1. Mencari pengguna berdasarkan username
     const user = await User.findOne({ username });
     if (!user) {
+      // Catat log login gagal jika username tidak ditemukan
       await LoginLog.create({ username: username || "UNKNOWN", ip_address: ipAddress, status: "FAILED" });
       res.status(401).json({ message: "Username atau Password salah!" });
       return;
@@ -50,16 +63,19 @@ router.post("/login", loginLimiter, async (req: Request, res: Response): Promise
       return;
     }
 
+    // 2. Memverifikasi hash password menggunakan argon2
     const isMatch = await argon2.verify(user.password, password);
     if (!isMatch) {
+      // Catat log login gagal jika password salah
       await LoginLog.create({ username, ip_address: ipAddress, status: "FAILED" });
       res.status(401).json({ message: "Username atau Password salah!" });
       return;
     }
 
-    // Log successful login attempt
+    // 3. Catat log login sukses ke database
     await LoginLog.create({ username, ip_address: ipAddress, status: "SUCCESS" });
 
+    // 4. Generate token JWT dengan masa berlaku 24 jam
     const token = jwt.sign(
       { id: user._id, username: user.username },
       ENV.JWT_SECRET,
@@ -73,11 +89,17 @@ router.post("/login", loginLimiter, async (req: Request, res: Response): Promise
   }
 });
 
+// ============================================================
+// Endpoint: GET /api/login-logs
+// Deskripsi: Mengambil 50 riwayat aktivitas log login terakhir.
+//            Endpoint ini dilindungi oleh middleware authenticateToken.
+// ============================================================
 router.get(
   "/login-logs",
   authenticateToken,
   async (req: Request, res: Response): Promise<void> => {
     try {
+      // Mengambil data log login diurutkan berdasarkan waktu terbaru
       const logs = await LoginLog.find().sort({ timestamp: -1 }).limit(50).lean();
       res.json(logs);
     } catch (err: unknown) {

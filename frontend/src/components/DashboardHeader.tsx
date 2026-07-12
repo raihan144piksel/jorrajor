@@ -22,7 +22,7 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({ isOnline, isEspOnline
     return (
         <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 bg-slate-800 p-4 sm:p-6 rounded-2xl shadow-xl">
             <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-white">SEMAI Smart Farm</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-white">ZENITH Smart Farm</h1>
                 <div className="flex items-center gap-2 mt-1">
                   <select
                     value={selectedNode}
