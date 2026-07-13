@@ -11,7 +11,7 @@ SEMAI Smart Farm adalah sistem monitoring dan otomatisasi rumah kaca berbasis Io
 - **Dynamic Threshold**: Pengaturan ambang batas relay yang bisa diubah langsung dari dashboard tanpa _reflash_ alat.
 - **Deadband Filter**: Optimasi database (Report by Exception) — data hanya disimpan jika ada perubahan signifikan, menghemat storage.
 - **Non-Blocking Architecture**: Firmware ESP32 tetap menjalankan otomatisasi meskipun koneksi WiFi/MQTT terputus.
-- **WiFiManager**: Konfigurasi WiFi dinamis melalui Captive Portal (tanpa _hardcoded_ SSID/Password).
+- **WiFiManager**: Konfigurasi WiFi dinamis melalui Captive Portal (tanpa _hardcoded_ SSID/Password). ESP32 akan membaca kredensial dari NVS Flash, dan jika gagal terhubung, ia akan otomatis membuat Access Point sendiri agar Anda dapat menginput SSID & Password secara nirkabel melalui browser HP/PC.
 - **History Analytics**: Grafik historis dengan agregasi 5-menit (Database Level) dan sistem _caching_ di frontend.
 - **Resilient History Fallback**: Sistem cerdas yang mendeteksi status offline perangkat dan menyesuaikan rentang waktu grafik serta unduhan agar selalu menampilkan rentang waktu aktif terakhir (bukan grafik kosong).
 - **FOTA Update Feedback**: Monitoring status instalasi firmware ESP32 jarak jauh (OTA) secara real-time langsung dari dashboard (Downloading, Installing, Success, Failed).
@@ -24,7 +24,7 @@ SEMAI Smart Farm adalah sistem monitoring dan otomatisasi rumah kaca berbasis Io
 
 - `/frontend`: Aplikasi React + Vite + Tailwind + TypeScript.
 - `/backend`: Server Node.js + Express + MongoDB + Socket.io + TypeScript.
-- `/rumahijo_arduino`: Firmware ESP32 (C++/Arduino).
+- `/firmware`: Firmware ESP32 (C++ / PlatformIO).
 
 ---
 
@@ -39,23 +39,17 @@ cd backend
 npm install
 ```
 
-Buat file `.env` di folder `backend/` dengan isi sebagai berikut:
+Salin file `.env.example` menjadi `.env` di folder `backend/` lalu sesuaikan nilainya:
 
-```env
-PORT=3000
-MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/smartfarm
-JWT_SECRET=rahasia_super_kuat_anda
-FRONTEND_URL="http://localhost:5173"
-NODE_ENV="production"
-MQTT_URL=mqtts://broker_address:port
-MQTT_USER=username_mqtt
-MQTT_PASS=password_mqtt
-TG_TOKEN=token_bot_telegram_anda
-TG_CHAT_ID=id_chat_anda
+```bash
+cp .env.example .env
 ```
 
 > [!IMPORTANT]
-> Backend menggunakan pola **Fail-Fast**. Jika ada variabel di atas yang tidak diisi, server tidak akan berjalan.
+> Backend menggunakan pola **Fail-Fast**. Jika ada variabel lingkungan di dalam `.env` yang tidak diisi atau tidak valid, server tidak akan berjalan.
+
+> [!NOTE]
+> **Admin Account Seeding**: Saat backend pertama kali dijalankan, sistem akan secara otomatis membuat (seeding) satu akun administrator default ke dalam database MongoDB menggunakan kredensial dari `ADMIN_USERNAME` dan `ADMIN_PASSWORD` yang Anda definisikan di file `.env`. Gunakan kredensial ini untuk masuk ke dashboard pertama kali.
 
 Jalankan server:
 
@@ -72,11 +66,10 @@ cd frontend
 npm install
 ```
 
-Buat file `.env` di folder `frontend/`:
+Salin file `.env.example` menjadi `.env` di folder `frontend/` lalu sesuaikan nilainya:
 
-```env
-VITE_API_URL=http://localhost:3000/api
-VITE_BACKEND_URL=http://localhost:3000
+```bash
+cp .env.example .env
 ```
 
 Jalankan dashboard:
@@ -87,65 +80,34 @@ npm run dev
 
 ### 3. Firmware ESP32
 
-1. Buka file di folder `/rumahijo_arduino/rumahijo_arduino.ino` menggunakan Arduino IDE atau Arduino CLI.
-2. Edit file `config.h` dan lengkapi konfigurasi berikut:
+1. Masuk ke folder `/firmware`.
+2. Salin file `src/config.h.example` menjadi `src/config.h` lalu lengkapi konfigurasi perangkat, WiFi, dan MQTT di dalamnya:
 
-   ```cpp
-   #ifndef CONFIG_H
-   #define CONFIG_H
-
-   // DEVICE ID
-   const char* DEVICE_ID      = "device0";
-
-   // MQTT Broker
-   const char* MQTT_SERVER    = "alamat_broker_anda";
-   const int   MQTT_PORT      = 8883; // Port SSL/TLS
-   const char* MQTT_CLIENT_ID = "semainode01";
-   const char* MQTT_USER      = "user_mqtt";
-   const char* MQTT_PASSWORD  = "pass_mqtt";
-
-   // MQTT Topics
-   const char* TOPIC_TELEMETRY = "smartfarm/telemetry";
-   const char* TOPIC_CONTROL   = "smartfarm/control";
-   const char* TOPIC_SETTINGS  = "smartfarm/settings";
-   const char* TOPIC_OTA       = "smartfarm/ota";
-
-   // Telegram (Opsional - Jika ingin notif dari alat)
-   const char* TG_TOKEN       = "token_bot";
-   const char* TG_CHAT_ID     = "id_chat";
-   #endif
+   ```bash
+   cp src/config.h.example src/config.h
    ```
 
-3. Install library yang dibutuhkan: `WiFiManager`, `PubSubClient`, `ArduinoJson`, `DHT sensor library`.
-4. Upload ke ESP32.
-5. Setelah menyala, hubungkan HP Anda ke WiFi **"SEMAI-SmartFarm"** (Pass: `admin123`) untuk mengatur koneksi internet alat.
+3. Jalankan perintah PlatformIO untuk mengompilasi, mengunggah ke ESP32, dan memantau serial port:
+   - **Kompilasi / Build**:
+     ```bash
+     pio run
+     ```
+   - **Upload & Monitor**:
+     ```bash
+     pio run --target upload --target monitor
+     ```
+     atau dengan parameter singkat:
+     ```bash
+     pio run -t upload -t monitor
+     ```
+
+4. Setelah menyala, hubungkan HP Anda ke WiFi **"SEMAI-SmartFarm"** (Pass: `admin123`) untuk mengatur koneksi internet alat (jika WiFi default tidak terhubung).
 
 ---
 
-## 🔌 API Reference
+## 🔌 API & MQTT Reference
 
-Semua endpoint kecuali `/api/login` dilindungi oleh middleware autentikasi. Gunakan header: `Authorization: Bearer <your_token>`.
-
-### Authentication
-
-- `POST /api/login`: Login pengguna untuk mendapatkan token JWT (`username` & `password`).
-- `GET /api/login-logs`: Mendapatkan riwayat log percobaan masuk (login) beserta alamat IP.
-
-### Telemetry & Analytics
-
-- `GET /api/telemetry?range=30m&bin=none&device_id=device0`: Mendapatkan data sensor murni atau teragregasi berdasarkan `device_id`.
-- `GET /api/telemetry/table?page=1&limit=50&device_id=device0`: Mendapatkan log riwayat sensor terpaginasi.
-- `GET /api/telemetry/analytics?device_id=device0`: Mendapatkan ringkasan statistik harian berdasarkan `device_id`.
-- `GET /api/telemetry/download?device_id=device0`: Mengunduh data riwayat log sensor lengkap dalam format CSV.
-- `GET /api/telemetry/nodes`: Mendapatkan seluruh daftar `device_id` unik yang terdaftar.
-- `GET /api/telemetry/device-logs`: Mendapatkan riwayat log konektivitas online/offline ESP32.
-
-### Control, Settings & OTA
-
-- `POST /api/control`: Mengirim perintah manual (ON/OFF/AUTO) ke relay ESP32 berdasarkan `device_id`.
-- `GET /api/settings?device_id=device0` & `POST /api/settings`: Mengatur ambang batas sensor berdasarkan `device_id`.
-- `POST /api/ota/upload`: Mengunggah file `.bin` untuk update firmware jarak jauh berdasarkan `device_id`.
-- `GET /api/ota/firmware.bin`: Endpoint publik untuk mengunduh firmware terunggah.
+Dokumentasi lengkap mengenai REST API, MQTT topics, dan integrasi API eksternal dapat dilihat di berkas [api_and_mqtt.md](api_and_mqtt.md).
 
 ---
 
@@ -158,13 +120,57 @@ Proyek ini menerapkan standar keamanan industri untuk melindungi data dan akses 
 3.  **Rate Limiting**: Endpoint login dilindungi oleh _rate limiter_ untuk mencegah serangan _brute-force_.
 4.  **Protected Routes**: Middleware pada backend memastikan bahwa hanya pengguna dengan token valid yang dapat melihat data sensor atau mengontrol perangkat farm.
 
+## ⚙️ Mekanisme Ketahanan & Optimasi
+
+Proyek ini dirancang dengan standar industri untuk memastikan efisiensi penyimpanan data backend dan ketahanan fisik hardware relay:
+
+### 1. Deadband Filter (Report by Exception)
+
+Untuk menghemat ruang penyimpanan database, backend menyaring data telemetri yang dikirim oleh ESP32. Data baru hanya akan disimpan ke database MongoDB jika memenuhi salah satu kondisi berikut:
+
+- Terjadi perubahan suhu udara $\ge 0.5^\circ\text{C}$ dibanding data tersimpan terakhir.
+- Terjadi perubahan kelembapan udara $\ge 2.0\%$ dibanding data tersimpan terakhir.
+- Terjadi perubahan kelembapan tanah $\ge 2.0\%$ dibanding data tersimpan terakhir.
+- Terjadi perubahan intensitas cahaya $\ge 2.0\%$ dibanding data tersimpan terakhir.
+- Terjadi perubahan status relay aktif (ON/OFF).
+- Waktu paksa simpan (Force Save Heartbeat) tercapai, yaitu setiap 5 menit sekali.
+
+### 2. Pembersihan Otomatis Database (Retention Policy)
+
+Backend memiliki _cleanup background job_ yang berjalan saat server dinyalakan dan diulang setiap 1 jam. Job ini secara otomatis menghapus data telemetri historis yang lebih lama dari jumlah hari retensi yang diatur (default: 30 hari) di tabel pengaturan.
+
+### 3. Relay State Machine (Firmware)
+
+Guna menghindari kerusakan mekanis actuator akibat perubahan kondisi sensor yang berfluktuasi terlalu cepat (relay hammering), firmware ESP32 mengimplementasikan mesin status (_State Machine_) dengan mekanisme berikut:
+
+- **Debounce Penyalaan (DURASI_TRIGGER: 6 detik)**: Kondisi buruk sensor harus bertahan stabil selama minimal 6 detik sebelum relay dapat diubah menjadi `ON`.
+- **Durasi Aktif Minimum**: Pompa minimal menyala 2 detik, Kipas 10 detik, dan Lampu 10 detik.
+- **Debounce Pemadaman**: Kondisi normal sensor harus bertahan stabil selama minimal 6 detik sebelum relay diubah kembali menjadi `OFF`.
+- **Cooldown (DURASI_COOLDOWN: 10 detik)**: Setelah relay padam, ia dipaksa berada dalam status `COOLDOWN` selama 10 detik dan tidak dapat dinyalakan kembali dalam masa jeda tersebut untuk melindungi sirkuit hardware.
+
+### 4. Konfigurasi Ambang Batas Dinamis (Dynamic Runtime Thresholds)
+
+Ambang batas otomatisasi relay bersifat dinamis dan dapat diatur langsung melalui Web Dashboard secara runtime tanpa perlu melakukan _compile_ atau _flash_ ulang firmware ESP32. Perubahan nilai ambang batas dikirimkan melalui protokol MQTT dan langsung disimpan ke NVS Flash ESP32 agar nilai tetap bertahan meskipun perangkat mati/reboot.
+
+Nilai ambang batas bawaan (default) sistem adalah:
+
+- **Ambang Batas Suhu (Kipas)**: `30.0 °C` (Kipas menyala jika Suhu > Ambang Batas)
+- **Ambang Batas Kelembapan Tanah (Pompa)**: `40.0 %` (Pompa menyala jika Kelembapan Tanah < Ambang Batas)
+- **Ambang Batas Cahaya (Lampu)**: `50.0 %` (Lampu UV menyala jika Cahaya < Ambang Batas)
+
+### 5. Pola Desain Perangkat Lunak Firmware (Embedded Design Patterns)
+Guna menjamin keandalan pemrosesan data real-time pada microchip ESP32, firmware dirancang dengan beberapa pola berikut:
+- **Cooperative Scheduler (Non-blocking)**: Penjadwalan tugas pembacaan sensor dan publikasi MQTT berjalan secara kooperatif menggunakan pengecekan waktu delta `millis()`. Hal ini menghindari penggunaan fungsi `delay()` yang memblokir instruksi, sehingga ESP32 tetap responsif memproses sinyal masuk.
+- **Deferred Flash Write**: Proses penyimpanan ambang batas baru ke NVS Flash ESP32 ditunda (deferred) dan dieksekusi di akhir siklus loop utama hanya jika terjadi perubahan. Langkah ini meminimalisir wear-and-tear pada memori flash ESP32.
+- **Instant Publish on Override**: Saat pengguna mengubah status relay secara manual dari dashboard, ESP32 memotong interval siklus telemetri normal (2 detik) untuk mempublikasikan status terbaru secara instan. Ini membuat tampilan antarmuka (UI) dashboard merespons dengan cepat.
+
 ---
 
 ## 🛠️ Tech Stack
 
 - **Frontend**: React 19, TypeScript, Tailwind CSS, Lucide Icons, Recharts, Axios.
 - **Backend**: Node.js, Express, TypeScript, MongoDB (Mongoose), Socket.io, MQTT.js.
-- **Firmware**: C++, Arduino Framework, WiFiManager, PubSubClient.
+- **Firmware**: C++, PlatformIO (Arduino Framework), WiFiManager, PubSubClient.
 
 ---
 
@@ -185,9 +191,3 @@ Proyek ini menerapkan standar keamanan industri untuk melindungi data dan akses 
 3. Jangan lupa atur _redirect rules_ agar SPA React Router tidak mengembalikan error 404 saat halamannya di-_refresh_.
 
 ---
-
-## 📄 Lisensi
-
-Proyek ini bersifat open-source. Silakan modifikasi sesuai kebutuhan Anda.
-
-**SEMAI - Solusi Modern Pertanian Indonesia**
