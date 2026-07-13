@@ -197,7 +197,7 @@ router.get(
 
       for await (const doc of cursor) {
         const row = [
-          doc.timestamp ? new Date(doc.timestamp).toISOString() : "",
+          doc.timestamp ? new Date(doc.timestamp).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : "",
           doc.suhu !== undefined && doc.suhu !== null ? doc.suhu : "",
           doc.kelembapan_udara !== undefined && doc.kelembapan_udara !== null ? doc.kelembapan_udara : "",
           doc.tanah !== undefined && doc.tanah !== null ? doc.tanah : "",
